@@ -328,6 +328,7 @@ export default function App() {
   const inFlightRef = useRef(new Set<string>());
   const timerRef = useRef<number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
   const isOfflineMode = mode === 'offline';
 
   useEffect(() => {
@@ -720,15 +721,6 @@ export default function App() {
         </nav>
 
         <div className="topbar-actions">
-          <button
-            className="ghost-button quiet desktop-sidebar-toggle"
-            type="button"
-            aria-pressed={sidebarCollapsed}
-            title={sidebarCollapsed ? 'Show notes sidebar' : 'Hide notes sidebar'}
-            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
-          >
-            {sidebarCollapsed ? 'Show notes' : 'Hide notes'}
-          </button>
           <span className={`save-state save-${saveState}`} role="status">
             <span className="status-dot" aria-hidden="true" />
             {saveLabel(saveState)}
@@ -757,14 +749,39 @@ export default function App() {
           } as CSSProperties
         }
       >
+        {sidebarCollapsed && (
+          <div className="sidebar-restore-rail">
+            <button
+              className="sidebar-restore-button"
+              type="button"
+              aria-label="Show notes sidebar"
+              title="Show notes sidebar"
+              onClick={() => setSidebarCollapsed(false)}
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        )}
+
         <aside className={`sidebar ${mobileView === 'notes' ? 'mobile-active' : ''}`}>
           <div className="sidebar-heading">
             <div>
               <span className="section-label">Workspace</span>
               <strong>Notes</strong>
             </div>
-            <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
-            <button className="primary-button compact" type="button" onClick={() => void addNote()}>New note</button>
+            <span className="sidebar-heading-actions">
+              <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
+              <button className="primary-button compact" type="button" onClick={() => void addNote()}>New note</button>
+              <button
+                className="sidebar-collapse-button"
+                type="button"
+                aria-label="Hide notes sidebar"
+                title="Hide notes sidebar"
+                onClick={() => setSidebarCollapsed(true)}
+              >
+                <span aria-hidden="true">‹</span>
+              </button>
+            </span>
           </div>
 
           <div className="sidebar-search">
@@ -814,16 +831,34 @@ export default function App() {
           {selectedNote ? (
             <>
               <div className="document-toolbar">
-                <label className="document-title-field">
-                  <span className="section-label">Note title</span>
-                  <input
-                    className="title-input"
-                    value={selectedNote.title}
-                    onChange={(event: ChangeEvent<HTMLInputElement>) => editSelected({ title: event.target.value })}
-                    aria-label="Note title"
-                    maxLength={200}
-                  />
-                </label>
+                <div className="document-title-field">
+                  <label className="section-label" htmlFor="note-title-input">Note title</label>
+                  <span className="title-input-wrap">
+                    <input
+                      id="note-title-input"
+                      ref={titleInputRef}
+                      className="title-input"
+                      value={selectedNote.title}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => editSelected({ title: event.target.value })}
+                      aria-label="Note title"
+                      maxLength={200}
+                    />
+                    {selectedNote.title && (
+                      <button
+                        className="title-clear-button"
+                        type="button"
+                        aria-label="Clear note title"
+                        title="Clear title"
+                        onClick={() => {
+                          editSelected({ title: '' });
+                          titleInputRef.current?.focus();
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                </div>
                 <div className="document-actions" aria-label="Note actions">
                   <button className="icon-button" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
                     {selectedNote.isPinned ? 'Unpin' : 'Pin'}

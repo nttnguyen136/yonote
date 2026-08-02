@@ -3,12 +3,57 @@
  * Kept separate from styles.css so the feature can be removed or revised cleanly.
  */
 
-.desktop-sidebar-toggle {
-  white-space: nowrap;
+.sidebar-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.sidebar-heading-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-collapse-button,
+.sidebar-restore-button {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.sidebar-collapse-button {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar-collapse-button:hover,
+.sidebar-restore-button:hover {
+  border-color: var(--accent-border);
+  color: var(--text-strong);
+  background: var(--surface-raised);
+}
+
+.sidebar-collapse-button:focus-visible,
+.sidebar-restore-button:focus-visible,
+.title-clear-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sidebar-restore-rail,
+.title-clear-button,
 .workspace-resizer {
   display: none;
+}
+
+.title-input-wrap {
+  position: relative;
+  min-width: 0;
+  display: block;
 }
 
 body.yonote-resizing,
@@ -31,6 +76,21 @@ body.yonote-resizing * {
 
   .workspace.sidebar-collapsed > .sidebar {
     display: none;
+  }
+
+  .workspace.sidebar-collapsed > .sidebar-restore-rail {
+    display: flex;
+    flex: 0 0 42px;
+    align-self: stretch;
+    justify-content: center;
+    padding-top: 12px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .sidebar-restore-button {
+    width: 30px;
+    height: 34px;
   }
 
   .workspace > .editor-panel {
@@ -93,8 +153,37 @@ body.yonote-resizing * {
 }
 
 @media (max-width: 900px) {
-  .desktop-sidebar-toggle,
+  .sidebar-collapse-button,
+  .sidebar-restore-rail,
   .workspace-resizer {
     display: none !important;
+  }
+
+  .title-input-wrap .title-input {
+    padding-right: 38px;
+  }
+
+  .title-clear-button {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 7px;
+    color: var(--muted);
+    background: transparent;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .title-clear-button:hover,
+  .title-clear-button:active {
+    color: var(--text-strong);
+    background: var(--surface-raised);
   }
 }
