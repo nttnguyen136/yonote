@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { ThemePreference } from '../lib/types';
 import { MermaidBlock } from './MermaidBlock';
+import { ThemeSelect } from './ThemeSelect';
 import { PlantUmlBlock } from './PlantUmlBlock';
 
 export type DiagramLanguage = 'plantuml' | 'mermaid';
@@ -191,7 +192,7 @@ interface LiveUmlWorkspaceProps {
   onMermaidSourceChange: (source: string) => void;
   theme: 'light' | 'dark';
   themePreference: ThemePreference;
-  onTheme: () => void;
+  onThemeChange: (theme: ThemePreference) => void;
   onClose: () => void;
   onExit: () => void;
   canInstall: boolean;
@@ -211,11 +212,6 @@ function downloadBlob(content: BlobPart, type: string, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-function themeLabel(preference: ThemePreference): string {
-  if (preference === 'system') return 'Theme: Auto';
-  return preference === 'light' ? 'Theme: Light' : 'Theme: Dark';
-}
-
 function defaultName(language: DiagramLanguage): string {
   return language === 'plantuml' ? 'plantuml-diagram' : 'mermaid-diagram';
 }
@@ -227,7 +223,7 @@ export function LiveUmlWorkspace({
   onMermaidSourceChange,
   theme,
   themePreference,
-  onTheme,
+  onThemeChange,
   onClose,
   onExit,
   canInstall,
@@ -363,68 +359,87 @@ export function LiveUmlWorkspace({
     <main className="live-uml-shell">
       <header className="topbar live-uml-topbar">
         <div className="brand">
-          <span>Y</span> YONOTE
-          <strong className="mode-badge">PRIVATE OFFLINE</strong>
-          <strong className="mode-badge live-uml-badge">LIVE DIAGRAM</strong>
+          <span>Y</span>
+          <div className="brand-copy">
+            <strong>YONOTE</strong>
+            <small>Private workspace</small>
+          </div>
+        </div>
+
+        <div className="topbar-context">
+          <nav className="workspace-switcher" aria-label="Private workspace tools">
+            <button type="button" onClick={onClose}>Offline Notes</button>
+            <button type="button" className="active" aria-current="page">Live Diagram</button>
+          </nav>
         </div>
 
         <nav className="live-uml-mobile-tabs" aria-label="Live Diagram views">
-          <button className={mobileView === 'editor' ? 'active' : ''} onClick={() => setMobileView('editor')}>Source</button>
-          <button className={mobileView === 'preview' ? 'active' : ''} onClick={() => setMobileView('preview')}>Preview</button>
+          <button type="button" className={mobileView === 'editor' ? 'active' : ''} onClick={() => setMobileView('editor')}>Source</button>
+          <button type="button" className={mobileView === 'preview' ? 'active' : ''} onClick={() => setMobileView('preview')}>Preview</button>
         </nav>
 
         <div className="topbar-actions">
-          {canInstall && <button className="ghost-button" onClick={() => void onInstall()}>Install</button>}
-          <button className="ghost-button" type="button" onClick={onTheme}>{themeLabel(themePreference)}</button>
-          <button className="ghost-button" type="button" onClick={onClose}>Offline Notes</button>
+          {canInstall && <button className="ghost-button quiet" type="button" onClick={() => void onInstall()}>Install</button>}
+          <ThemeSelect compact value={themePreference} onChange={onThemeChange} />
           <button className="ghost-button" type="button" onClick={onExit}>Exit</button>
         </div>
       </header>
 
-      <div className="live-uml-banner">
-        Offline tool: PlantUML and Mermaid are rendered on this device and kept only in RAM. Source is never sent to an API or saved to D1.
+      <div className="offline-banner live-uml-banner">
+        <span className="offline-banner-icon" aria-hidden="true">◎</span>
+        <span><strong>Local rendering</strong> · Source stays in RAM and never reaches an API or D1.</span>
       </div>
 
-      <nav className="live-diagram-language-tabs" aria-label="Diagram language">
-        <button
-          type="button"
-          className={language === 'plantuml' ? 'active' : ''}
-          aria-pressed={language === 'plantuml'}
-          onClick={() => changeLanguage('plantuml')}
-        >
-          PlantUML
-        </button>
-        <button
-          type="button"
-          className={language === 'mermaid' ? 'active' : ''}
-          aria-pressed={language === 'mermaid'}
-          onClick={() => changeLanguage('mermaid')}
-        >
-          Mermaid
-        </button>
-      </nav>
+      <section className="live-diagram-header">
+        <div>
+          <span className="section-label">Diagram engine</span>
+          <strong>Choose a language</strong>
+        </div>
+        <nav className="live-diagram-language-tabs" aria-label="Diagram language">
+          <button
+            type="button"
+            className={language === 'plantuml' ? 'active' : ''}
+            aria-pressed={language === 'plantuml'}
+            onClick={() => changeLanguage('plantuml')}
+          >
+            <span>PlantUML</span>
+            <small>Architecture and UML</small>
+          </button>
+          <button
+            type="button"
+            className={language === 'mermaid' ? 'active' : ''}
+            aria-pressed={language === 'mermaid'}
+            onClick={() => changeLanguage('mermaid')}
+          >
+            <span>Mermaid</span>
+            <small>Flows and lightweight diagrams</small>
+          </button>
+        </nav>
+      </section>
 
       <section className="live-uml-toolbar">
-        <label className="live-uml-name">
-          <span>Name</span>
-          <input value={name} maxLength={120} onChange={(event: ChangeEvent<HTMLInputElement>) => setCurrentName(event.target.value)} aria-label="Diagram name" />
-        </label>
+        <div className="live-uml-fields">
+          <label className="live-uml-name">
+            <span>Name</span>
+            <input value={name} maxLength={120} onChange={(event: ChangeEvent<HTMLInputElement>) => setCurrentName(event.target.value)} aria-label="Diagram name" />
+          </label>
 
-        <label className="live-uml-template">
-          <span>{languageLabel} template</span>
-          <select key={language} defaultValue="" onChange={(event: ChangeEvent<HTMLSelectElement>) => {
-            if (!event.target.value) return;
-            applyTemplate(event.target.value);
-            event.target.value = '';
-          }}>
-            <option value="" disabled>Choose…</option>
-            {Object.entries(templates).map(([key, template]) => (
-              <option key={key} value={key}>{template.label}</option>
-            ))}
-          </select>
-        </label>
+          <label className="live-uml-template">
+            <span>Template</span>
+            <select key={language} defaultValue="" onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+              if (!event.target.value) return;
+              applyTemplate(event.target.value);
+              event.target.value = '';
+            }}>
+              <option value="" disabled>Choose {languageLabel} template…</option>
+              {Object.entries(templates).map(([key, template]) => (
+                <option key={key} value={key}>{template.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
 
-        <div className="live-uml-actions">
+        <div className="live-uml-actions" aria-label="Diagram actions">
           <input
             ref={fileInputRef}
             className="visually-hidden"
@@ -432,27 +447,28 @@ export function LiveUmlWorkspace({
             accept=".puml,.plantuml,.mmd,.mermaid,.txt,text/plain"
             onChange={importFile}
           />
-          <button className="ghost-button" onClick={() => fileInputRef.current?.click()}>Import</button>
-          <button className="ghost-button" onClick={() => void copySource()}>
-            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy'}
+          <button className="ghost-button" type="button" onClick={() => fileInputRef.current?.click()}>Import</button>
+          <button className="ghost-button" type="button" onClick={() => void copySource()}>
+            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy source'}
           </button>
-          <button className="ghost-button" onClick={() => downloadBlob(source, 'text/plain;charset=utf-8', `${safeFilename(name)}.${sourceExtension}`)}>
+          <button className="ghost-button" type="button" onClick={() => downloadBlob(source, 'text/plain;charset=utf-8', `${safeFilename(name)}.${sourceExtension}`)}>
             Export .{sourceExtension}
           </button>
           <button
-            className="ghost-button"
+            className="primary-button compact"
+            type="button"
             disabled={!renderedSvg || Boolean(renderError)}
             onClick={() => downloadBlob(renderedSvg, 'image/svg+xml;charset=utf-8', `${safeFilename(name)}.svg`)}
           >
             Export SVG
           </button>
-          <button className="icon-button danger" onClick={reset}>Reset</button>
+          <button className="icon-button danger" type="button" onClick={reset}>Reset</button>
         </div>
       </section>
 
       <section className="live-uml-workspace">
         <div className={`live-uml-editor-panel ${mobileView === 'editor' ? 'mobile-active' : ''}`}>
-          <div className="live-uml-panel-heading">
+          <div className="panel-heading live-uml-panel-heading">
             <strong>{languageLabel} source</strong>
             <span>{lines} lines · {characters} characters</span>
           </div>
@@ -468,9 +484,9 @@ export function LiveUmlWorkspace({
         </div>
 
         <div className={`live-uml-preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`}>
-          <div className="live-uml-panel-heading">
+          <div className="panel-heading live-uml-panel-heading">
             <strong>Live preview · {languageLabel}</strong>
-            <span>{previewStatus}</span>
+            <span className={renderError ? 'preview-status error' : 'preview-status'}>{previewStatus}</span>
           </div>
           <div className="live-uml-preview-canvas">
             {renderSource.trim() ? (
@@ -502,13 +518,18 @@ export function LiveUmlWorkspace({
                 />
               )
             ) : (
-              <div className="empty-workspace"><p>Enter {languageLabel} source to render a diagram.</p></div>
+              <div className="empty-workspace">
+                <span className="empty-workspace-icon" aria-hidden="true">◇</span>
+                <h2>Nothing to preview</h2>
+                <p>Enter {languageLabel} source or choose a template.</p>
+              </div>
             )}
           </div>
         </div>
       </section>
     </main>
   );
+
 }
 
 export {

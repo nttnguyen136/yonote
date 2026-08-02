@@ -10,4 +10,4 @@ export interface Note {
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'offline' | 'error' | 'conflict';
 export type WorkspaceMode = 'locked' | 'online' | 'offline';
-export type ThemePreference = 'system' | 'light' | 'dark';
+export type ThemePreference = 'system' | 'light' | 'dark' | 'midnight' | 'sepia' | 'forest';

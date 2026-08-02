@@ -2,11 +2,12 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useSta
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
 import { MarkdownPreview } from './components/MarkdownPreview';
+import { ThemeSelect } from './components/ThemeSelect';
 import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE, LiveUmlWorkspace } from './components/LiveUmlWorkspace';
+import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 
 type MobileView = 'notes' | 'editor' | 'preview';
 type AppView = 'notes' | 'uml';
-type ResolvedTheme = 'light' | 'dark';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -81,7 +82,7 @@ function createOfflineNote(title = 'Private offline note', content = OFFLINE_STA
 function getInitialTheme(): ThemePreference {
   try {
     const stored = window.localStorage.getItem('yonote-theme');
-    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+    return isThemePreference(stored) ? stored : 'system';
   } catch {
     return 'system';
   }
@@ -89,37 +90,31 @@ function getInitialTheme(): ThemePreference {
 
 function useTheme() {
   const [preference, setPreference] = useState<ThemePreference>(getInitialTheme);
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
-    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  const [systemDark, setSystemDark] = useState(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches,
   );
-  const resolvedTheme: ResolvedTheme = preference === 'system' ? systemTheme : preference;
+  const resolvedTheme = resolveTheme(preference, systemDark);
+  const diagramTheme = getDiagramTheme(resolvedTheme);
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const update = () => setSystemTheme(media.matches ? 'dark' : 'light');
+    const update = () => setSystemDark(media.matches);
     media.addEventListener('change', update);
     return () => media.removeEventListener('change', update);
   }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
-    document.documentElement.style.colorScheme = resolvedTheme;
+    document.documentElement.style.colorScheme = diagramTheme;
     try {
       window.localStorage.setItem('yonote-theme', preference);
     } catch {
-      // Theme still works for the current session when storage is unavailable.
+      // Appearance still works for the current session when storage is unavailable.
     }
-    document.querySelector('meta[name="theme-color"]')?.setAttribute(
-      'content',
-      resolvedTheme === 'dark' ? '#0d1117' : '#f6f8fa',
-    );
-  }, [preference, resolvedTheme]);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getThemeColor(resolvedTheme));
+  }, [diagramTheme, preference, resolvedTheme]);
 
-  function cycleTheme() {
-    setPreference((current) => (current === 'system' ? 'light' : current === 'light' ? 'dark' : 'system'));
-  }
-
-  return { preference, resolvedTheme, cycleTheme };
+  return { preference, resolvedTheme, diagramTheme, setPreference };
 }
 
 function useInstallPrompt() {
@@ -156,27 +151,18 @@ function useInstallPrompt() {
   return { canInstall: Boolean(promptEvent) && !installed, install };
 }
 
-function ThemeButton({ preference, onClick }: { preference: ThemePreference; onClick: () => void }) {
-  const label = preference === 'system' ? 'Theme: Auto' : preference === 'light' ? 'Theme: Light' : 'Theme: Dark';
-  return (
-    <button className="ghost-button" type="button" onClick={onClick} title="Cycle system, light and dark theme">
-      {label}
-    </button>
-  );
-}
-
 function UnlockScreen({
   onUnlock,
   onOffline,
   theme,
-  onTheme,
+  onThemeChange,
   canInstall,
   onInstall,
 }: {
   onUnlock: (key: string) => Promise<void>;
   onOffline: () => void;
   theme: ThemePreference;
-  onTheme: () => void;
+  onThemeChange: (theme: ThemePreference) => void;
   canInstall: boolean;
   onInstall: () => Promise<void>;
 }) {
@@ -201,36 +187,74 @@ function UnlockScreen({
 
   return (
     <main className="unlock-page">
-      <div className="unlock-tools">
-        <ThemeButton preference={theme} onClick={onTheme} />
-        {canInstall && <button className="ghost-button" onClick={() => void onInstall()}>Install app</button>}
-      </div>
-      <form className="unlock-card" onSubmit={submit}>
-        <div className="brand-mark">Y</div>
-        <h1>YONOTE</h1>
-        <p>Enter the access key to open your cloud notes.</p>
-        <label htmlFor="access-key">Access key</label>
-        <input
-          id="access-key"
-          type="password"
-          value={key}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => setKey(event.target.value)}
-          autoComplete="current-password"
-          autoFocus
-          maxLength={512}
-        />
-        {error && <div className="form-error">{error}</div>}
-        <button className="primary-button" type="submit" disabled={!key || submitting}>
-          {submitting ? 'Unlocking…' : 'Unlock cloud notes'}
-        </button>
-        <div className="unlock-divider"><span>or</span></div>
-        <button className="offline-button" type="button" onClick={onOffline}>
-          Open Private Offline Mode
-        </button>
-        <small>
-          Private Offline Mode includes memory-only notes, Live PlantUML and Live Mermaid. Nothing is sent to the notes API or saved to D1.
-        </small>
-      </form>
+      <header className="unlock-header">
+        <div className="brand brand-large">
+          <span>Y</span>
+          <div>
+            <strong>YONOTE</strong>
+            <small>Notes and diagrams</small>
+          </div>
+        </div>
+        <div className="unlock-tools">
+          {canInstall && (
+            <button className="ghost-button" type="button" onClick={() => void onInstall()}>
+              Install app
+            </button>
+          )}
+          <ThemeSelect value={theme} onChange={onThemeChange} />
+        </div>
+      </header>
+
+      <section className="unlock-layout">
+        <div className="unlock-intro">
+          <span className="eyebrow">Private · Fast · Installable</span>
+          <h1>Write clearly.<br /><span>Think visually.</span></h1>
+          <p>
+            A focused Markdown workspace with local Mermaid and PlantUML rendering,
+            designed for both cloud notes and private offline sessions.
+          </p>
+          <div className="feature-pills" aria-label="YONOTE features">
+            <span>Markdown</span>
+            <span>Mermaid</span>
+            <span>PlantUML</span>
+            <span>PWA offline</span>
+          </div>
+        </div>
+
+        <form className="unlock-card" onSubmit={submit}>
+          <div className="unlock-card-heading">
+            <span className="section-label">Cloud workspace</span>
+            <h2>Open your notes</h2>
+            <p>Enter your access key. The key and session token stay out of browser storage.</p>
+          </div>
+
+          <label className="field-label" htmlFor="access-key">Access key</label>
+          <input
+            id="access-key"
+            type="password"
+            value={key}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => setKey(event.target.value)}
+            autoComplete="current-password"
+            autoFocus
+            maxLength={512}
+            placeholder="Enter access key"
+          />
+          {error && <div className="form-error" role="alert">{error}</div>}
+          <button className="primary-button unlock-submit" type="submit" disabled={!key || submitting}>
+            {submitting ? 'Opening workspace…' : 'Open cloud notes'}
+          </button>
+
+          <div className="unlock-divider"><span>Private workspace</span></div>
+          <button className="offline-workspace-button" type="button" onClick={onOffline}>
+            <span className="offline-workspace-icon" aria-hidden="true">◎</span>
+            <span>
+              <strong>Open Private Offline Mode</strong>
+              <small>RAM-only notes and live diagrams. Nothing is sent to D1.</small>
+            </span>
+            <span className="offline-workspace-arrow" aria-hidden="true">→</span>
+          </button>
+        </form>
+      </section>
     </main>
   );
 }
@@ -249,7 +273,7 @@ export default function App() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('notes');
   const [editSignal, setEditSignal] = useState(0);
-  const { preference: themePreference, resolvedTheme, cycleTheme } = useTheme();
+  const { preference: themePreference, diagramTheme, setPreference: setThemePreference } = useTheme();
   const { canInstall, install } = useInstallPrompt();
 
   const notesRef = useRef(notes);
@@ -521,9 +545,9 @@ export default function App() {
         onPlantUmlSourceChange={setLiveUmlSource}
         mermaidSource={liveMermaidSource}
         onMermaidSourceChange={setLiveMermaidSource}
-        theme={resolvedTheme}
+        theme={diagramTheme}
         themePreference={themePreference}
-        onTheme={cycleTheme}
+        onThemeChange={setThemePreference}
         onClose={() => setAppView('notes')}
         onExit={lock}
         canInstall={canInstall}
@@ -538,7 +562,7 @@ export default function App() {
         onUnlock={performUnlock}
         onOffline={startOfflineMode}
         theme={themePreference}
-        onTheme={cycleTheme}
+        onThemeChange={setThemePreference}
         canInstall={canInstall}
         onInstall={install}
       />
@@ -549,84 +573,128 @@ export default function App() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span>Y</span> YONOTE
-          {isOfflineMode && <strong className="mode-badge">PRIVATE OFFLINE</strong>}
+          <span>Y</span>
+          <div className="brand-copy">
+            <strong>YONOTE</strong>
+            <small>{isOfflineMode ? 'Private workspace' : 'Cloud workspace'}</small>
+          </div>
         </div>
-        <nav className="mobile-tabs" aria-label="Mobile workspace views">
-          <button className={mobileView === 'notes' ? 'active' : ''} onClick={() => setMobileView('notes')}>Notes</button>
-          <button className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('editor')}>Edit</button>
-          <button className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('preview')}>Preview</button>
-        </nav>
-        <div className="topbar-actions">
-          <span className={`save-state save-${saveState}`}>{saveLabel(saveState)}</span>
-          {canInstall && <button className="ghost-button" onClick={() => void install()}>Install</button>}
-          {isOfflineMode && (
-            <button className="ghost-button" onClick={() => setAppView('uml')}>Live Diagram</button>
+
+        <div className="topbar-context">
+          {isOfflineMode ? (
+            <nav className="workspace-switcher" aria-label="Private workspace tools">
+              <button type="button" className="active" aria-current="page">Offline Notes</button>
+              <button type="button" onClick={() => setAppView('uml')}>Live Diagram</button>
+            </nav>
+          ) : (
+            <span className="cloud-context"><span aria-hidden="true">●</span> Cloud notes</span>
           )}
-          <ThemeButton preference={themePreference} onClick={cycleTheme} />
-          <button className="ghost-button" onClick={lock}>{isOfflineMode ? 'Exit' : 'Lock'}</button>
+        </div>
+
+        <nav className="mobile-tabs" aria-label="Note workspace views">
+          <button type="button" className={mobileView === 'notes' ? 'active' : ''} onClick={() => setMobileView('notes')}>Notes</button>
+          <button type="button" className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('editor')}>Edit</button>
+          <button type="button" className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('preview')}>Preview</button>
+        </nav>
+
+        <div className="topbar-actions">
+          <span className={`save-state save-${saveState}`} role="status">
+            <span className="status-dot" aria-hidden="true" />
+            {saveLabel(saveState)}
+          </span>
+          {canInstall && <button className="ghost-button quiet" type="button" onClick={() => void install()}>Install</button>}
+          <ThemeSelect compact value={themePreference} onChange={setThemePreference} />
+          <button className="ghost-button" type="button" onClick={lock}>{isOfflineMode ? 'Exit' : 'Lock'}</button>
         </div>
       </header>
 
       {isOfflineMode && (
         <div className="offline-banner">
-          Private Offline Mode: Offline Notes, Live PlantUML and Live Mermaid are memory-only. No notes API or D1 calls. Export before closing.
+          <span className="offline-banner-icon" aria-hidden="true">◎</span>
+          <span><strong>Private Offline Mode</strong> · Notes and diagrams stay in memory only. Export before leaving.</span>
         </div>
       )}
-      {globalError && <div className="global-error">{globalError}</div>}
+      {globalError && <div className="global-error" role="alert">{globalError}</div>}
 
       <div className="workspace">
         <aside className={`sidebar ${mobileView === 'notes' ? 'mobile-active' : ''}`}>
-          <div className="sidebar-toolbar">
+          <div className="sidebar-heading">
+            <div>
+              <span className="section-label">Workspace</span>
+              <strong>Notes</strong>
+            </div>
+            <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
+            <button className="primary-button compact" type="button" onClick={() => void addNote()}>New note</button>
+          </div>
+
+          <div className="sidebar-search">
+            <span aria-hidden="true">⌕</span>
             <input
               type="search"
-              placeholder="Search notes…"
+              placeholder="Search title or content"
+              aria-label="Search notes"
               value={search}
               onChange={(event: ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
             />
-            <button className="primary-button compact" onClick={() => void addNote()}>+ New</button>
+            {search && (
+              <button type="button" aria-label="Clear search" title="Clear search" onClick={() => setSearch('')}>×</button>
+            )}
           </div>
 
           <div className="note-list">
-            {loading && <div className="empty-state">Loading notes…</div>}
+            {loading && <div className="empty-state"><span className="empty-state-icon">…</span><strong>Loading notes</strong></div>}
             {!loading && filteredNotes.length === 0 && (
-              <div className="empty-state">{notes.length ? 'No matching notes.' : 'No notes yet.'}</div>
+              <div className="empty-state">
+                <span className="empty-state-icon" aria-hidden="true">◇</span>
+                <strong>{notes.length ? 'No results' : 'No notes yet'}</strong>
+                <p>{notes.length ? 'Try a different search term.' : 'Create your first note to begin.'}</p>
+                {!notes.length && <button className="ghost-button" type="button" onClick={() => void addNote()}>Create note</button>}
+              </div>
             )}
             {filteredNotes.map((note) => (
               <button
                 key={note.id}
+                type="button"
                 className={`note-item ${note.id === selectedId ? 'selected' : ''}`}
+                aria-current={note.id === selectedId ? 'page' : undefined}
                 onClick={() => selectNote(note.id)}
               >
                 <div className="note-title-row">
                   <strong>{note.title || 'Untitled note'}</strong>
-                  {note.isPinned && <span title="Pinned">◆</span>}
+                  {note.isPinned && <span className="pin-indicator" title="Pinned" aria-label="Pinned">◆</span>}
                 </div>
                 <p>{note.content.replace(/[#>*_`\[\]]/g, '').slice(0, 100) || 'Empty note'}</p>
-                <time>{formatDate(note.updatedAt)}</time>
+                <time dateTime={new Date(note.updatedAt).toISOString()}>{formatDate(note.updatedAt)}</time>
               </button>
             ))}
           </div>
         </aside>
 
-        <section className={`editor-panel ${mobileView === 'editor' ? 'mobile-active' : ''}`}>
+        <section className={`editor-panel ${mobileView === 'editor' ? 'mobile-active' : ''}`} aria-label="Markdown editor">
           {selectedNote ? (
             <>
               <div className="document-toolbar">
-                <input
-                  className="title-input"
-                  value={selectedNote.title}
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => editSelected({ title: event.target.value })}
-                  aria-label="Note title"
-                  maxLength={200}
-                />
-                <div className="document-actions">
-                  <button className="icon-button" onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
+                <label className="document-title-field">
+                  <span className="section-label">Note title</span>
+                  <input
+                    className="title-input"
+                    value={selectedNote.title}
+                    onChange={(event: ChangeEvent<HTMLInputElement>) => editSelected({ title: event.target.value })}
+                    aria-label="Note title"
+                    maxLength={200}
+                  />
+                </label>
+                <div className="document-actions" aria-label="Note actions">
+                  <button className="icon-button" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
                     {selectedNote.isPinned ? 'Unpin' : 'Pin'}
                   </button>
-                  <button className="icon-button" onClick={downloadSelected}>Export</button>
-                  <button className="icon-button danger" onClick={() => void removeSelected()}>Delete</button>
+                  <button className="icon-button" type="button" title="Export Markdown" onClick={downloadSelected}>Export</button>
+                  <button className="icon-button danger" type="button" title="Delete note" onClick={() => void removeSelected()}>Delete</button>
                 </div>
+              </div>
+              <div className="panel-heading editor-heading">
+                <strong>Markdown</strong>
+                <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> to save</span>
               </div>
               <textarea
                 className="markdown-editor"
@@ -634,28 +702,37 @@ export default function App() {
                 onChange={(event: ChangeEvent<HTMLTextAreaElement>) => editSelected({ content: event.target.value })}
                 placeholder={'# Start writing\n\n```mermaid\nflowchart LR\n  A --> B\n```'}
                 spellCheck
+                aria-label="Markdown content"
               />
             </>
           ) : (
             <div className="empty-workspace">
+              <span className="empty-workspace-icon" aria-hidden="true">✦</span>
               <h2>No note selected</h2>
-              <p>Create a note to start writing.</p>
-              <button className="primary-button" onClick={() => void addNote()}>Create note</button>
+              <p>Create a note or choose one from the sidebar.</p>
+              <button className="primary-button" type="button" onClick={() => void addNote()}>Create note</button>
             </div>
           )}
         </section>
 
-        <section className={`preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`}>
-          {selectedNote ? (
-            <MarkdownPreview
-              content={selectedNote.content}
-              theme={resolvedTheme}
-            />
-          ) : (
-            <div className="empty-workspace"><p>Preview will appear here.</p></div>
-          )}
+        <section className={`preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`} aria-label="Markdown preview">
+          <div className="panel-heading preview-heading">
+            <strong>Preview</strong>
+            <span>Markdown · Mermaid · PlantUML</span>
+          </div>
+          <div className="preview-scroll">
+            {selectedNote ? (
+              <MarkdownPreview content={selectedNote.content} theme={diagramTheme} />
+            ) : (
+              <div className="empty-workspace">
+                <span className="empty-workspace-icon" aria-hidden="true">◫</span>
+                <p>Preview will appear here.</p>
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </main>
   );
+
 }
