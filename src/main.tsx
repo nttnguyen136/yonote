@@ -5,6 +5,7 @@ import { SharedNotePage } from './components/SharedNotePage';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 import './styles.css';
 import './share.css';
+import './resizable-layout.css';
 
 // Apply the saved appearance before React mounts to avoid a light/dark flash.
 try {

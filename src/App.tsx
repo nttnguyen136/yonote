@@ -1,4 +1,9 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
 import { MarkdownPreview } from './components/MarkdownPreview';
@@ -9,6 +14,40 @@ import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from 
 
 type MobileView = 'notes' | 'editor' | 'preview';
 type AppView = 'notes' | 'uml';
+
+const LAYOUT_STORAGE_KEY = 'yonote-layout-v1';
+const DEFAULT_EDITOR_RATIO = 50;
+const MIN_EDITOR_RATIO = 25;
+const MAX_EDITOR_RATIO = 75;
+
+interface StoredLayout {
+  sidebarCollapsed: boolean;
+  editorRatio: number;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function getInitialLayout(): StoredLayout {
+  try {
+    const stored = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
+    if (!stored) {
+      return { sidebarCollapsed: false, editorRatio: DEFAULT_EDITOR_RATIO };
+    }
+
+    const parsed = JSON.parse(stored) as Partial<StoredLayout>;
+    return {
+      sidebarCollapsed: parsed.sidebarCollapsed === true,
+      editorRatio:
+        typeof parsed.editorRatio === 'number' && Number.isFinite(parsed.editorRatio)
+          ? clamp(parsed.editorRatio, MIN_EDITOR_RATIO, MAX_EDITOR_RATIO)
+          : DEFAULT_EDITOR_RATIO,
+    };
+  } catch {
+    return { sidebarCollapsed: false, editorRatio: DEFAULT_EDITOR_RATIO };
+  }
+}
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -274,6 +313,12 @@ export default function App() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('notes');
   const [editSignal, setEditSignal] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => getInitialLayout().sidebarCollapsed,
+  );
+  const [editorRatio, setEditorRatio] = useState(
+    () => getInitialLayout().editorRatio,
+  );
   const { preference: themePreference, diagramTheme, setPreference: setThemePreference } = useTheme();
   const { canInstall, install } = useInstallPrompt();
 
@@ -282,7 +327,22 @@ export default function App() {
   const dirtyIdsRef = useRef(new Set<string>());
   const inFlightRef = useRef(new Set<string>());
   const timerRef = useRef<number | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const isOfflineMode = mode === 'offline';
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        LAYOUT_STORAGE_KEY,
+        JSON.stringify({
+          sidebarCollapsed,
+          editorRatio: Math.round(editorRatio * 10) / 10,
+        } satisfies StoredLayout),
+      );
+    } catch {
+      // Layout still works for the current session when storage is unavailable.
+    }
+  }, [editorRatio, sidebarCollapsed]);
 
   useEffect(() => {
     notesRef.current = notes;
@@ -398,6 +458,67 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [flushSave, mode]);
+
+  function startPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || window.matchMedia('(max-width: 900px)').matches) return;
+
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    const workspaceRect = workspace.getBoundingClientRect();
+    const sidebar = workspace.querySelector<HTMLElement>('.sidebar');
+    const sidebarWidth = sidebarCollapsed ? 0 : (sidebar?.getBoundingClientRect().width ?? 0);
+    const separatorWidth = event.currentTarget.getBoundingClientRect().width;
+    const availableWidth = workspaceRect.width - sidebarWidth - separatorWidth;
+    if (availableWidth <= 0) return;
+
+    const contentLeft = workspaceRect.left + sidebarWidth;
+    const paneMinimum = 280;
+    const dynamicMinimum = Math.max(
+      MIN_EDITOR_RATIO,
+      (paneMinimum / availableWidth) * 100,
+    );
+    const dynamicMaximum = Math.min(
+      MAX_EDITOR_RATIO,
+      100 - (paneMinimum / availableWidth) * 100,
+    );
+
+    function updateRatio(clientX: number) {
+      const nextRatio = ((clientX - contentLeft) / availableWidth) * 100;
+      setEditorRatio(clamp(nextRatio, dynamicMinimum, dynamicMaximum));
+    }
+
+    function finishResize() {
+      window.removeEventListener('pointermove', moveResize);
+      window.removeEventListener('pointerup', finishResize);
+      window.removeEventListener('pointercancel', finishResize);
+      document.body.classList.remove('yonote-resizing');
+    }
+
+    function moveResize(pointerEvent: PointerEvent) {
+      updateRatio(pointerEvent.clientX);
+    }
+
+    event.preventDefault();
+    document.body.classList.add('yonote-resizing');
+    updateRatio(event.clientX);
+    window.addEventListener('pointermove', moveResize);
+    window.addEventListener('pointerup', finishResize);
+    window.addEventListener('pointercancel', finishResize);
+  }
+
+  function handlePanelResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    let nextRatio: number | null = null;
+
+    if (event.key === 'ArrowLeft') nextRatio = editorRatio - 2;
+    if (event.key === 'ArrowRight') nextRatio = editorRatio + 2;
+    if (event.key === 'Home') nextRatio = MIN_EDITOR_RATIO;
+    if (event.key === 'End') nextRatio = MAX_EDITOR_RATIO;
+
+    if (nextRatio === null) return;
+    event.preventDefault();
+    setEditorRatio(clamp(nextRatio, MIN_EDITOR_RATIO, MAX_EDITOR_RATIO));
+  }
 
   async function performUnlock(key: string) {
     setAppView('notes');
@@ -599,6 +720,15 @@ export default function App() {
         </nav>
 
         <div className="topbar-actions">
+          <button
+            className="ghost-button quiet desktop-sidebar-toggle"
+            type="button"
+            aria-pressed={sidebarCollapsed}
+            title={sidebarCollapsed ? 'Show notes sidebar' : 'Hide notes sidebar'}
+            onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+          >
+            {sidebarCollapsed ? 'Show notes' : 'Hide notes'}
+          </button>
           <span className={`save-state save-${saveState}`} role="status">
             <span className="status-dot" aria-hidden="true" />
             {saveLabel(saveState)}
@@ -617,7 +747,16 @@ export default function App() {
       )}
       {globalError && <div className="global-error" role="alert">{globalError}</div>}
 
-      <div className="workspace">
+      <div
+        ref={workspaceRef}
+        className={`workspace ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+        style={
+          {
+            '--editor-grow': editorRatio,
+            '--preview-grow': 100 - editorRatio,
+          } as CSSProperties
+        }
+      >
         <aside className={`sidebar ${mobileView === 'notes' ? 'mobile-active' : ''}`}>
           <div className="sidebar-heading">
             <div>
@@ -723,6 +862,24 @@ export default function App() {
             </div>
           )}
         </section>
+
+        <div
+          className="workspace-resizer"
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize editor and preview"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_EDITOR_RATIO}
+          aria-valuemax={MAX_EDITOR_RATIO}
+          aria-valuenow={Math.round(editorRatio)}
+          aria-valuetext={`Editor ${Math.round(editorRatio)}%, preview ${Math.round(100 - editorRatio)}%`}
+          title="Drag to resize. Double-click to reset."
+          onPointerDown={startPanelResize}
+          onKeyDown={handlePanelResizeKeyDown}
+          onDoubleClick={() => setEditorRatio(DEFAULT_EDITOR_RATIO)}
+        >
+          <span aria-hidden="true" />
+        </div>
 
         <section className={`preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`} aria-label="Markdown preview">
           <div className="panel-heading preview-heading">
