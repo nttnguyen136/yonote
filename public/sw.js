@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'yonote-shell-v7';
+const CACHE_VERSION = 'yonote-shell-v8';
 const SHELL_URLS = [
   '/',
   '/index.html',

@@ -286,6 +286,26 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .diagram-loading { color: var(--muted); border: 1px dashed var(--border); }
 .diagram-unavailable { display: grid; gap: 7px; color: var(--offline); border: 1px dashed var(--offline-border); background: var(--offline-bg); }
 .diagram-unavailable span { font-size: .85rem; }
+
+.mermaid-error {
+  width: 100%;
+  max-width: 100%;
+  align-self: start;
+  overflow: auto;
+}
+.mermaid-error strong { display: block; margin-bottom: 8px; }
+.mermaid-error pre {
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12px/1.45 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+.mermaid-error small { color: var(--muted); }
+.diagram-loading.compact { width: 100%; margin: 0 0 8px; padding: 8px 10px; font-size: .78rem; }
 .diagram-unavailable pre { margin: 4px 0 0; color: var(--text); }
 .mobile-tabs { display: none; }
 

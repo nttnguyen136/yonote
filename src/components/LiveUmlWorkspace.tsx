@@ -160,7 +160,7 @@ const MERMAID_TEMPLATES: Record<string, DiagramTemplate> = {
   }
 
   class NoteRepository {
-    +list() Note[]
+    +list() List~Note~
     +create() Note
     +update(Note note) Note
     +delete(string id)
