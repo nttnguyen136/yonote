@@ -14,13 +14,43 @@
 - PlantUML render qua API serverless, proxy đến Kroki.
 - Chặn các directive PlantUML `!include`, `!includeurl`, `!include_many`, `!import`.
 - Responsive: sidebar/editor/preview trên desktop; Notes/Edit/Preview theo tab trên mobile.
+- Theme System/Light/Dark, ghi nhớ lựa chọn giao diện trên thiết bị.
+- Private Offline Mode: note chỉ tồn tại trong RAM, không gọi notes API, không D1 và không gửi PlantUML.
+- Progressive Web App: có thể cài trên mobile/desktop và mở giao diện khi không có mạng.
 - Export note thành file `.md`.
 - Key và session token không được lưu trong Local Storage hoặc Session Storage.
+
+## Chế độ hoạt động
+
+### Cloud mode
+
+- Nhập `ACCESS_KEY`.
+- Đọc và ghi notes qua Worker API và D1.
+- Mermaid render trong browser; PlantUML gửi đến Worker/Kroki.
+
+### Private Offline Mode
+
+- Bỏ qua Access Key và toàn bộ notes API.
+- Không đọc/ghi D1, không `POST`, không queue hoặc background sync.
+- Nội dung note chỉ giữ trong memory của tab/app hiện tại.
+- Refresh, đóng app, Lock hoặc Exit sẽ xóa toàn bộ note offline.
+- Dùng **Export** trước khi thoát để giữ file Markdown.
+- Mermaid vẫn hoạt động trong browser. PlantUML chỉ hiển thị source và không gọi renderer.
+
+Theme preference được lưu riêng trong `localStorage`; nội dung note offline không được lưu vào `localStorage`, `sessionStorage` hoặc IndexedDB.
+
+## Cài đặt PWA
+
+Sau lần mở online đầu tiên, service worker cache application shell để YONOTE có thể mở khi mất mạng.
+
+- Chrome/Edge desktop hoặc Android: chọn nút **Install app** trong màn hình mở khóa khi browser hỗ trợ.
+- iOS/iPadOS Safari: chọn **Share → Add to Home Screen**.
+- API request không bao giờ được service worker cache, replay hoặc đưa vào background queue.
 
 ## Kiến trúc
 
 ```text
-React + Vite static assets
+React + Vite static assets + PWA service worker
           │
           ├── Markdown + Mermaid trong browser
           │
@@ -156,3 +186,12 @@ flowchart LR
 - Một note tối đa khoảng 1 MB UTF-8.
 - PlantUML source tối đa 100 KB.
 - Token hợp lệ 12 giờ nhưng chỉ được giữ trong memory; refresh vẫn phải nhập Key lại.
+
+## Kiểm tra Offline Mode
+
+1. Mở YONOTE online ít nhất một lần để cài service worker.
+2. Chọn **Open private offline mode**.
+3. Trong DevTools Network, lọc `api`: không có request `/api/unlock`, `/api/notes` hoặc `/api/plantuml`.
+4. Bật chế độ Offline của browser và reload app đã cài.
+5. Mermaid vẫn render; PlantUML hiển thị thông báo không gửi source ra ngoài.
+6. Exit/Lock hoặc đóng app: note offline bị xóa.

@@ -1,13 +1,7 @@
 import mermaid from 'mermaid';
 import { useEffect, useId, useState } from 'react';
 
-mermaid.initialize({
-  startOnLoad: false,
-  securityLevel: 'strict',
-  theme: 'dark',
-});
-
-export function MermaidBlock({ source }: { source: string }) {
+export function MermaidBlock({ source, theme }: { source: string; theme: 'light' | 'dark' }) {
   const reactId = useId();
   const [svg, setSvg] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +10,13 @@ export function MermaidBlock({ source }: { source: string }) {
     let active = true;
     const id = `mermaid-${reactId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
 
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: theme === 'dark' ? 'dark' : 'default',
+    });
+
+    setSvg('');
     void mermaid
       .render(id, source)
       .then(({ svg: output }) => {
@@ -34,7 +35,7 @@ export function MermaidBlock({ source }: { source: string }) {
     return () => {
       active = false;
     };
-  }, [reactId, source]);
+  }, [reactId, source, theme]);
 
   if (error) return <div className="diagram-error">Mermaid: {error}</div>;
   if (!svg) return <div className="diagram-loading">Rendering Mermaid…</div>;

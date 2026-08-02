@@ -8,4 +8,6 @@ export interface Note {
   updatedAt: number;
 }
 
-export type SaveState = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
+export type SaveState = 'idle' | 'saving' | 'saved' | 'offline' | 'error' | 'conflict';
+export type WorkspaceMode = 'locked' | 'online' | 'offline';
+export type ThemePreference = 'system' | 'light' | 'dark';
