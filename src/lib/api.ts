@@ -1,5 +1,16 @@
 import type { Note } from './types';
 
+export interface NoteShare {
+  shareId: string;
+  createdAt: number;
+}
+
+export interface SharedNote {
+  title: string;
+  content: string;
+  updatedAt: number;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -66,4 +77,25 @@ export async function updateNote(token: string, note: Note): Promise<Note> {
 
 export async function deleteNote(token: string, id: string): Promise<void> {
   await request<void>(`/api/notes/${id}`, token, { method: 'DELETE' });
+}
+
+export async function getNoteShare(token: string, noteId: string): Promise<NoteShare | null> {
+  const result = await request<{ share: NoteShare | null }>(`/api/notes/${noteId}/share`, token);
+  return result.share;
+}
+
+export async function createNoteShare(token: string, noteId: string): Promise<NoteShare> {
+  const result = await request<{ share: NoteShare }>(`/api/notes/${noteId}/share`, token, {
+    method: 'POST',
+  });
+  return result.share;
+}
+
+export async function revokeNoteShare(token: string, noteId: string): Promise<void> {
+  await request<void>(`/api/notes/${noteId}/share`, token, { method: 'DELETE' });
+}
+
+export async function getSharedNote(shareId: string): Promise<SharedNote> {
+  const result = await request<{ note: SharedNote }>(`/api/shares/${encodeURIComponent(shareId)}`, null);
+  return result.note;
 }

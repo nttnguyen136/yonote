@@ -46,6 +46,17 @@ interface Note {
   updatedAt: number;
 }
 
+interface NoteShareRow {
+  share_id: string;
+  created_at: number;
+}
+
+interface SharedNoteRow {
+  title: string;
+  content: string;
+  updated_at: number;
+}
+
 const encoder = new TextEncoder();
 const MAX_NOTE_BYTES = 1_000_000;
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
@@ -99,6 +110,14 @@ async function ensureSchema(db: D1Database): Promise<void> {
       `).run();
       await db.prepare('CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC)').run();
       await db.prepare('CREATE INDEX IF NOT EXISTS idx_notes_pinned_updated ON notes(is_pinned DESC, updated_at DESC)').run();
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS note_shares (
+          share_id TEXT PRIMARY KEY,
+          note_id TEXT NOT NULL UNIQUE,
+          created_at INTEGER NOT NULL
+        )
+      `).run();
+      await db.prepare('CREATE INDEX IF NOT EXISTS idx_note_shares_note_id ON note_shares(note_id)').run();
     })().catch((cause) => {
       schemaReady = undefined;
       throw cause;
@@ -290,7 +309,83 @@ async function updateNote(request: Request, env: Env, id: string): Promise<Respo
   return json({ note: rowToNote(updated!) });
 }
 
+async function getSharedNote(env: Env, shareId: string): Promise<Response> {
+  const shared = await env.DB.prepare(`
+    SELECT notes.title, notes.content, notes.updated_at
+    FROM note_shares
+    INNER JOIN notes ON notes.id = note_shares.note_id
+    WHERE note_shares.share_id = ?
+  `).bind(shareId).first<SharedNoteRow>();
+
+  if (!shared) return error('Shared note not found.', 404);
+  return json({
+    note: {
+      title: shared.title,
+      content: shared.content,
+      updatedAt: shared.updated_at,
+    },
+  });
+}
+
+async function getNoteShare(env: Env, noteId: string): Promise<Response> {
+  const note = await env.DB.prepare('SELECT id FROM notes WHERE id = ?').bind(noteId).first<{ id: string }>();
+  if (!note) return error('Note not found.', 404);
+
+  const share = await env.DB.prepare(`
+    SELECT share_id, created_at
+    FROM note_shares
+    WHERE note_id = ?
+  `).bind(noteId).first<NoteShareRow>();
+
+  return json({
+    share: share ? { shareId: share.share_id, createdAt: share.created_at } : null,
+  });
+}
+
+async function createNoteShare(env: Env, noteId: string): Promise<Response> {
+  const note = await env.DB.prepare('SELECT id FROM notes WHERE id = ?').bind(noteId).first<{ id: string }>();
+  if (!note) return error('Note not found.', 404);
+
+  const existing = await env.DB.prepare(`
+    SELECT share_id, created_at
+    FROM note_shares
+    WHERE note_id = ?
+  `).bind(noteId).first<NoteShareRow>();
+  if (existing) {
+    return json({ share: { shareId: existing.share_id, createdAt: existing.created_at } });
+  }
+
+  const createdAt = Date.now();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const shareId = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO note_shares (share_id, note_id, created_at)
+      VALUES (?, ?, ?)
+    `).bind(shareId, noteId, createdAt).run();
+
+    const created = await env.DB.prepare(`
+      SELECT share_id, created_at
+      FROM note_shares
+      WHERE note_id = ?
+    `).bind(noteId).first<NoteShareRow>();
+    if (created) {
+      return json({ share: { shareId: created.share_id, createdAt: created.created_at } }, 201);
+    }
+  }
+
+  return error('Unable to create share link.', 500);
+}
+
+async function deleteNoteShare(env: Env, noteId: string): Promise<Response> {
+  const note = await env.DB.prepare('SELECT id FROM notes WHERE id = ?').bind(noteId).first<{ id: string }>();
+  if (!note) return error('Note not found.', 404);
+
+  await env.DB.prepare('DELETE FROM note_shares WHERE note_id = ?').bind(noteId).run();
+  return new Response(null, { status: 204, headers: apiHeaders() });
+}
+
 async function deleteNote(env: Env, id: string): Promise<Response> {
+  await env.DB.prepare('DELETE FROM note_shares WHERE note_id = ?').bind(id).run();
   const result = await env.DB.prepare('DELETE FROM notes WHERE id = ?').bind(id).run();
   if ((result.meta.changes ?? 0) === 0) return error('Note not found.', 404);
   return new Response(null, { status: 204, headers: apiHeaders() });
@@ -307,12 +402,30 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     return handleUnlock(request, env);
   }
 
+  const publicShareMatch = url.pathname.match(/^\/api\/shares\/([^/]+)$/);
+  if (publicShareMatch) {
+    if (request.method !== 'GET') return error('Method not allowed.', 405);
+    const shareId = publicShareMatch[1];
+    if (!/^[A-Za-z0-9_-]{32}$/.test(shareId)) return error('Shared note not found.', 404);
+    await ensureSchema(env.DB);
+    return getSharedNote(env, shareId);
+  }
+
   if (!(await isAuthorized(request, env))) return error('Unauthorized.', 401);
   await ensureSchema(env.DB);
 
   if (url.pathname === '/api/notes') {
     if (request.method === 'GET') return listNotes(env);
     if (request.method === 'POST') return createNote(request, env);
+    return error('Method not allowed.', 405);
+  }
+
+  const shareMatch = url.pathname.match(/^\/api\/notes\/([0-9a-f-]+)\/share$/i);
+  if (shareMatch) {
+    const noteId = shareMatch[1];
+    if (request.method === 'GET') return getNoteShare(env, noteId);
+    if (request.method === 'POST') return createNoteShare(env, noteId);
+    if (request.method === 'DELETE') return deleteNoteShare(env, noteId);
     return error('Method not allowed.', 405);
   }
 

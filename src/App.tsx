@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useSta
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
 import { MarkdownPreview } from './components/MarkdownPreview';
+import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
 import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE, LiveUmlWorkspace } from './components/LiveUmlWorkspace';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
@@ -688,6 +689,14 @@ export default function App() {
                   <button className="icon-button" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
                     {selectedNote.isPinned ? 'Unpin' : 'Pin'}
                   </button>
+                  {!isOfflineMode && token && (
+                    <ShareButton
+                      key={selectedNote.id}
+                      token={token}
+                      note={selectedNote}
+                      onBeforeOpen={() => flushSave(selectedNote.id)}
+                    />
+                  )}
                   <button className="icon-button" type="button" title="Export Markdown" onClick={downloadSelected}>Export</button>
                   <button className="icon-button danger" type="button" title="Delete note" onClick={() => void removeSelected()}>Delete</button>
                 </div>

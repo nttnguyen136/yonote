@@ -1,8 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { SharedNotePage } from './components/SharedNotePage';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 import './styles.css';
+import './share.css';
 
 // Apply the saved appearance before React mounts to avoid a light/dark flash.
 try {
@@ -22,8 +24,10 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   });
 }
 
+const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {shareMatch ? <SharedNotePage shareId={shareMatch[1]} /> : <App />}
   </StrictMode>,
 );

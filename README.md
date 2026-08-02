@@ -18,10 +18,11 @@ YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai
 - Import file `.md` hoặc `.markdown` thành note mới.
   - Ưu tiên heading `#` đầu tiên làm title.
   - Nếu không có heading, dùng tên file làm title.
-- Share note qua Web Share API của thiết bị.
-  - Ưu tiên chia sẻ file Markdown khi browser hỗ trợ.
-  - Fallback sang copy Markdown vào clipboard.
-  - YONOTE không tạo public link và không upload note sang dịch vụ chia sẻ riêng.
+- Chia sẻ từng Cloud Note bằng public read-only link.
+  - Link dùng random share ID và không yêu cầu `ACCESS_KEY`.
+  - Nội dung phản ánh phiên bản đã lưu mới nhất của note.
+  - Có thể copy hoặc revoke link ngay lập tức.
+  - Private Offline Mode không tạo public link.
 
 ### Tags, filter và sort
 
@@ -82,7 +83,7 @@ YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai
 - Notes được đọc và ghi qua Cloudflare Worker API và D1.
 - Tags được lưu cùng note.
 - Import Markdown tạo note mới và lưu vào D1.
-- Share note chỉ dùng khả năng share của thiết bị; không tạo public URL trên server.
+- Có thể tạo và revoke public read-only link cho từng Cloud Note.
 - Mermaid và PlantUML đều render cục bộ trong browser.
 - Diagram source không đi qua Worker.
 
@@ -182,6 +183,8 @@ YONOTE PWA
 │       ├── POST /api/notes
 │       ├── PATCH /api/notes/:id
 │       ├── DELETE /api/notes/:id
+│       ├── GET/POST/DELETE /api/notes/:id/share
+│       ├── GET /api/shares/:shareId
 │       └── Cloudflare D1
 │
 └── Private Offline Mode
@@ -204,7 +207,8 @@ Worker có thể tự bảo đảm schema cơ bản khi API được gọi. Các
 - Token có thời hạn mặc định 12 giờ, nhưng sẽ mất ngay khi reload do không được persist.
 - Note và diagram trong Private Offline Mode chỉ tồn tại trong RAM.
 - PlantUML và Mermaid render local.
-- Share note chỉ gửi nội dung đến ứng dụng đích mà người dùng chủ động chọn qua Share Sheet của hệ điều hành.
+- Bất kỳ ai có public share URL đều có thể đọc phiên bản đã lưu mới nhất cho đến khi link bị revoke.
+- Public share API không yêu cầu session token nhưng dùng random 192-bit share ID và trả `Cache-Control: no-store`.
 - CSP cho phép WebAssembly cần thiết cho PlantUML bằng `'wasm-unsafe-eval'`, không bật JavaScript `'unsafe-eval'`.
 
 ## Yêu cầu
