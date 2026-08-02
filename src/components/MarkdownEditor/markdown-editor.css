@@ -1,0 +1,136 @@
+.markdown-editor-shell {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.markdown-editor-toolbar {
+  min-height: 39px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  scrollbar-width: thin;
+}
+
+.markdown-editor-toolbar button {
+  min-width: 30px;
+  min-height: 28px;
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: .74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.markdown-editor-toolbar button:hover:not(:disabled),
+.markdown-editor-toolbar button:focus-visible {
+  color: var(--text-strong);
+  border-color: var(--border);
+  background: var(--surface-raised);
+}
+
+.markdown-editor-toolbar button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.markdown-editor-toolbar button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.markdown-editor-shortcuts {
+  margin-left: auto;
+  padding: 0 4px 0 12px;
+  color: var(--muted-2);
+  font-size: .68rem;
+  white-space: nowrap;
+}
+
+.markdown-editor-shortcuts kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--muted);
+  background: var(--surface-raised);
+  font: inherit;
+}
+
+.markdown-editor-host {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.markdown-editor-host > .cm-editor {
+  height: 100%;
+}
+
+.markdown-editor-host .cm-scroller {
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-editor-host .cm-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+}
+
+.markdown-editor-host .cm-search input,
+.markdown-editor-host .cm-search button,
+.markdown-editor-host .cm-panel input,
+.markdown-editor-host .cm-panel button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.markdown-editor-host .cm-search input {
+  padding: 4px 7px;
+}
+
+.markdown-editor-host .cm-search button {
+  padding: 4px 8px;
+}
+
+@media (max-width: 900px) {
+  .markdown-editor-toolbar {
+    min-height: 43px;
+    padding-inline: 7px;
+  }
+
+  .markdown-editor-toolbar button {
+    min-height: 32px;
+    padding-inline: 9px;
+  }
+
+  .markdown-editor-shortcuts {
+    display: none;
+  }
+
+  .markdown-editor-host .cm-gutters {
+    display: none;
+  }
+
+  .markdown-editor-host .cm-content {
+    padding: 18px 16px 96px;
+  }
+}

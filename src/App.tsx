@@ -6,6 +6,7 @@ import type {
 } from 'react';
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
+import { MarkdownEditor } from './components/MarkdownEditor';
 import { MarkdownPreview } from './components/MarkdownPreview';
 import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
@@ -879,13 +880,11 @@ export default function App() {
                 <strong>Markdown</strong>
                 <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> to save</span>
               </div>
-              <textarea
-                className="markdown-editor"
+              <MarkdownEditor
                 value={selectedNote.content}
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => editSelected({ content: event.target.value })}
+                onChange={(content) => editSelected({ content })}
+                theme={diagramTheme}
                 placeholder={'# Start writing\n\n```mermaid\nflowchart LR\n  A --> B\n```'}
-                spellCheck
-                aria-label="Markdown content"
               />
             </>
           ) : (
