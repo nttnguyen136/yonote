@@ -164,7 +164,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .unlock-divider { display: flex; align-items: center; gap: 10px; color: var(--muted-2); font-size: .8rem; }
 .unlock-divider::before, .unlock-divider::after { content: ''; height: 1px; flex: 1; background: var(--border); }
 
-.primary-button, .ghost-button, .offline-button, .icon-button, .mobile-tabs button {
+.primary-button, .ghost-button, .offline-button, .live-uml-button, .icon-button, .mobile-tabs button {
   border: 1px solid transparent;
   border-radius: 7px;
   padding: 9px 13px;
@@ -323,4 +323,214 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .unlock-page { padding: 70px 14px 18px; }
   .unlock-tools { top: 10px; right: 10px; }
   .unlock-card { padding: 24px; }
+}
+
+/* Live UML workspace */
+.live-uml-button {
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  padding: 9px 13px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  font-weight: 650;
+}
+.live-uml-button:hover { filter: brightness(1.08); }
+
+.live-uml-shell {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+.live-uml-topbar { flex: 0 0 58px; }
+.live-uml-badge {
+  color: var(--accent);
+  border-color: var(--accent-border);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+.live-uml-banner {
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  color: var(--offline);
+  background: var(--offline-bg);
+  border-bottom: 1px solid var(--offline-border);
+  font-size: .86rem;
+}
+.live-uml-toolbar {
+  flex: 0 0 auto;
+  min-height: 62px;
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.live-uml-name,
+.live-uml-template {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 650;
+}
+.live-uml-name { min-width: 180px; flex: 0 1 260px; }
+.live-uml-template { min-width: 130px; }
+.live-uml-name input,
+.live-uml-template select {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0 10px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+}
+.live-uml-name input:focus,
+.live-uml-template select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+.live-uml-actions {
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.live-uml-actions button { white-space: nowrap; }
+.live-uml-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+  filter: none;
+}
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.live-uml-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+}
+.live-uml-editor-panel,
+.live-uml-preview-panel {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.live-uml-editor-panel {
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+.live-uml-preview-panel { background: var(--surface); }
+.live-uml-panel-heading {
+  min-height: 42px;
+  flex: 0 0 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-strong);
+  font-size: .84rem;
+}
+.live-uml-panel-heading span {
+  color: var(--muted-2);
+  font-size: .74rem;
+  white-space: nowrap;
+}
+.live-uml-editor {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 20px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+.live-uml-preview-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px;
+  display: grid;
+  place-items: stretch;
+}
+.live-uml-preview-canvas > .plantuml-diagram {
+  min-height: calc(100% - 36px);
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+.live-uml-preview-canvas .plantuml-diagram > img {
+  max-height: calc(100dvh - 230px);
+}
+.live-uml-mobile-tabs { display: none; }
+
+@media (max-width: 1023px) {
+  .live-uml-toolbar { align-items: stretch; flex-wrap: wrap; }
+  .live-uml-name { flex: 1 1 220px; }
+  .live-uml-template { flex: 0 1 170px; }
+  .live-uml-actions { order: 2; width: 100%; margin-left: 0; }
+}
+
+@media (max-width: 767px) {
+  .live-uml-topbar { height: auto; flex: 0 0 auto; }
+  .live-uml-topbar .mode-badge { display: none; }
+  .live-uml-mobile-tabs {
+    order: 3;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .live-uml-mobile-tabs button {
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 7px;
+    color: var(--muted);
+    background: transparent;
+  }
+  .live-uml-mobile-tabs button.active {
+    color: var(--text-strong);
+    border-color: var(--border);
+    background: var(--surface-raised);
+  }
+  .live-uml-banner { padding: 7px 10px; font-size: .75rem; }
+  .live-uml-toolbar { gap: 8px; padding: 8px 10px; }
+  .live-uml-name,
+  .live-uml-template { min-width: 0; flex: 1 1 140px; }
+  .live-uml-actions { padding-bottom: 2px; }
+  .live-uml-actions .ghost-button,
+  .live-uml-actions .icon-button { padding: 7px 9px; font-size: .76rem; }
+  .live-uml-workspace { display: block; position: relative; min-height: 0; }
+  .live-uml-editor-panel,
+  .live-uml-preview-panel { display: none; width: 100%; height: 100%; border-right: 0; }
+  .live-uml-editor-panel.mobile-active,
+  .live-uml-preview-panel.mobile-active { display: flex; }
+  .live-uml-editor { padding: 14px; font-size: 15px; }
+  .live-uml-preview-canvas { padding: 10px; }
+  .live-uml-preview-canvas .plantuml-diagram > img { max-height: calc(100dvh - 300px); }
 }

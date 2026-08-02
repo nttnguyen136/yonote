@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const RENDER_TIMEOUT_MS = 15_000;
 const PLANTUML_MODULE_URL = '/plantuml/plantuml.js';
@@ -172,10 +172,24 @@ function renderPlantUmlLocally(source: string, dark: boolean): Promise<string> {
   return task;
 }
 
-export function PlantUmlBlock({ source, theme }: { source: string; theme: 'light' | 'dark' }) {
+export function PlantUmlBlock({
+  source,
+  theme,
+  onRendered,
+  onError,
+}: {
+  source: string;
+  theme: 'light' | 'dark';
+  onRendered?: (svg: string) => void;
+  onError?: (message: string) => void;
+}) {
   const [state, setState] = useState<RenderState>('loading');
   const [error, setError] = useState('');
   const [url, setUrl] = useState('');
+  const onRenderedRef = useRef(onRendered);
+  const onErrorRef = useRef(onError);
+  onRenderedRef.current = onRendered;
+  onErrorRef.current = onError;
 
   useEffect(() => {
     let active = true;
@@ -184,7 +198,9 @@ export function PlantUmlBlock({ source, theme }: { source: string; theme: 'light
     if (hasForbiddenDirective(source)) {
       setUrl('');
       setState('error');
-      setError('External file/URL include and import directives are disabled. Internal standard-library includes such as <C4/...> are allowed.');
+      const message = 'External file/URL include and import directives are disabled. Internal standard-library includes such as <C4/...> are allowed.';
+      setError(message);
+      onErrorRef.current?.(message);
       return;
     }
 
@@ -197,12 +213,15 @@ export function PlantUmlBlock({ source, theme }: { source: string; theme: 'light
         objectUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
         setUrl(objectUrl);
         setState('ready');
+        onRenderedRef.current?.(svg);
       })
       .catch((cause: unknown) => {
         if (!active) return;
         setUrl('');
-        setError(cause instanceof Error ? cause.message : 'PlantUML rendering failed.');
+        const message = cause instanceof Error ? cause.message : 'PlantUML rendering failed.';
+        setError(message);
         setState('error');
+        onErrorRef.current?.(message);
       });
 
     return () => {

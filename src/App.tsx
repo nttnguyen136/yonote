@@ -2,8 +2,10 @@ import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useSta
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
 import { MarkdownPreview } from './components/MarkdownPreview';
+import { DEFAULT_LIVE_UML_SOURCE, LiveUmlWorkspace } from './components/LiveUmlWorkspace';
 
 type MobileView = 'notes' | 'editor' | 'preview';
+type AppView = 'notes' | 'uml';
 type ResolvedTheme = 'light' | 'dark';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -166,6 +168,7 @@ function ThemeButton({ preference, onClick }: { preference: ThemePreference; onC
 function UnlockScreen({
   onUnlock,
   onOffline,
+  onLiveUml,
   theme,
   onTheme,
   canInstall,
@@ -173,6 +176,7 @@ function UnlockScreen({
 }: {
   onUnlock: (key: string) => Promise<void>;
   onOffline: () => void;
+  onLiveUml: () => void;
   theme: ThemePreference;
   onTheme: () => void;
   canInstall: boolean;
@@ -223,10 +227,13 @@ function UnlockScreen({
         </button>
         <div className="unlock-divider"><span>or</span></div>
         <button className="offline-button" type="button" onClick={onOffline}>
-          Open private offline mode
+          Open private offline notes
+        </button>
+        <button className="live-uml-button" type="button" onClick={onLiveUml}>
+          Open Live UML
         </button>
         <small>
-          Offline mode makes no notes API requests and keeps note content only in memory. Export before closing.
+          Offline notes and Live UML make no notes API requests. Memory-only content is cleared when the app closes or reloads.
         </small>
       </form>
     </main>
@@ -235,6 +242,8 @@ function UnlockScreen({
 
 export default function App() {
   const [mode, setMode] = useState<WorkspaceMode>('locked');
+  const [appView, setAppView] = useState<AppView>('notes');
+  const [liveUmlSource, setLiveUmlSource] = useState(DEFAULT_LIVE_UML_SOURCE);
   const [token, setToken] = useState<string | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -502,11 +511,27 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
+  if (appView === 'uml') {
+    return (
+      <LiveUmlWorkspace
+        source={liveUmlSource}
+        onSourceChange={setLiveUmlSource}
+        theme={resolvedTheme}
+        themePreference={themePreference}
+        onTheme={cycleTheme}
+        onClose={() => setAppView('notes')}
+        canInstall={canInstall}
+        onInstall={install}
+      />
+    );
+  }
+
   if (mode === 'locked') {
     return (
       <UnlockScreen
         onUnlock={performUnlock}
         onOffline={startOfflineMode}
+        onLiveUml={() => setAppView('uml')}
         theme={themePreference}
         onTheme={cycleTheme}
         canInstall={canInstall}
@@ -530,6 +555,7 @@ export default function App() {
         <div className="topbar-actions">
           <span className={`save-state save-${saveState}`}>{saveLabel(saveState)}</span>
           {canInstall && <button className="ghost-button" onClick={() => void install()}>Install</button>}
+          <button className="ghost-button" onClick={() => setAppView('uml')}>Live UML</button>
           <ThemeButton preference={themePreference} onClick={cycleTheme} />
           <button className="ghost-button" onClick={lock}>{isOfflineMode ? 'Exit' : 'Lock'}</button>
         </div>
