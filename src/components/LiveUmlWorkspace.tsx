@@ -107,7 +107,8 @@ NoteRepository --> Note
 title Private offline flow
 
 start
-:Open Live Diagram;
+:Open Private Offline Mode;
+:Switch to Live Diagram;
 :Edit PlantUML source;
 :Render locally in browser;
 
@@ -172,11 +173,12 @@ const MERMAID_TEMPLATES: Record<string, DiagramTemplate> = {
     source: `stateDiagram-v2
   [*] --> Locked
   Locked --> Online: Enter access key
-  Locked --> Offline: Open private mode
-  Locked --> LiveDiagram: Open Live Diagram
+  Locked --> OfflineNotes: Open Private Offline Mode
+  OfflineNotes --> LiveDiagram: Open Live Diagram
+  LiveDiagram --> OfflineNotes: Offline Notes
   Online --> Locked: Lock
-  Offline --> Locked: Exit
-  LiveDiagram --> Locked: Back`,
+  OfflineNotes --> Locked: Exit
+  LiveDiagram --> Locked: Exit`,
   },
 };
 
@@ -191,6 +193,7 @@ interface LiveUmlWorkspaceProps {
   themePreference: ThemePreference;
   onTheme: () => void;
   onClose: () => void;
+  onExit: () => void;
   canInstall: boolean;
   onInstall: () => Promise<void>;
 }
@@ -226,6 +229,7 @@ export function LiveUmlWorkspace({
   themePreference,
   onTheme,
   onClose,
+  onExit,
   canInstall,
   onInstall,
 }: LiveUmlWorkspaceProps) {
@@ -360,8 +364,8 @@ export function LiveUmlWorkspace({
       <header className="topbar live-uml-topbar">
         <div className="brand">
           <span>Y</span> YONOTE
+          <strong className="mode-badge">PRIVATE OFFLINE</strong>
           <strong className="mode-badge live-uml-badge">LIVE DIAGRAM</strong>
-          <strong className="mode-badge">LOCAL · MEMORY ONLY</strong>
         </div>
 
         <nav className="live-uml-mobile-tabs" aria-label="Live Diagram views">
@@ -372,12 +376,13 @@ export function LiveUmlWorkspace({
         <div className="topbar-actions">
           {canInstall && <button className="ghost-button" onClick={() => void onInstall()}>Install</button>}
           <button className="ghost-button" type="button" onClick={onTheme}>{themeLabel(themePreference)}</button>
-          <button className="ghost-button" type="button" onClick={onClose}>Back</button>
+          <button className="ghost-button" type="button" onClick={onClose}>Offline Notes</button>
+          <button className="ghost-button" type="button" onClick={onExit}>Exit</button>
         </div>
       </header>
 
       <div className="live-uml-banner">
-        PlantUML and Mermaid are rendered inside this device. Source is not sent to an API or saved to D1. Export before closing or reloading.
+        Offline tool: PlantUML and Mermaid are rendered on this device and kept only in RAM. Source is never sent to an API or saved to D1.
       </div>
 
       <nav className="live-diagram-language-tabs" aria-label="Diagram language">

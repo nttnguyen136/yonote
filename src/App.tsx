@@ -168,7 +168,6 @@ function ThemeButton({ preference, onClick }: { preference: ThemePreference; onC
 function UnlockScreen({
   onUnlock,
   onOffline,
-  onLiveDiagram,
   theme,
   onTheme,
   canInstall,
@@ -176,7 +175,6 @@ function UnlockScreen({
 }: {
   onUnlock: (key: string) => Promise<void>;
   onOffline: () => void;
-  onLiveDiagram: () => void;
   theme: ThemePreference;
   onTheme: () => void;
   canInstall: boolean;
@@ -227,13 +225,10 @@ function UnlockScreen({
         </button>
         <div className="unlock-divider"><span>or</span></div>
         <button className="offline-button" type="button" onClick={onOffline}>
-          Open private offline notes
-        </button>
-        <button className="live-uml-button" type="button" onClick={onLiveDiagram}>
-          Open Live Diagram
+          Open Private Offline Mode
         </button>
         <small>
-          Offline notes and Live Diagram make no notes API requests. Memory-only content is cleared when the app closes or reloads.
+          Private Offline Mode includes memory-only notes, Live PlantUML and Live Mermaid. Nothing is sent to the notes API or saved to D1.
         </small>
       </form>
     </main>
@@ -284,6 +279,9 @@ export default function App() {
 
   const lock = useCallback(() => {
     setMode('locked');
+    setAppView('notes');
+    setLiveUmlSource(DEFAULT_LIVE_UML_SOURCE);
+    setLiveMermaidSource(DEFAULT_LIVE_MERMAID_SOURCE);
     setToken(null);
     setNotes([]);
     setSelectedId(null);
@@ -377,6 +375,7 @@ export default function App() {
   }, [flushSave, mode]);
 
   async function performUnlock(key: string) {
+    setAppView('notes');
     const nextToken = await unlock(key);
     setToken(nextToken);
     setMode('online');
@@ -400,6 +399,9 @@ export default function App() {
   function startOfflineMode() {
     const note = createOfflineNote();
     setMode('offline');
+    setAppView('notes');
+    setLiveUmlSource(DEFAULT_LIVE_UML_SOURCE);
+    setLiveMermaidSource(DEFAULT_LIVE_MERMAID_SOURCE);
     setToken(null);
     setNotes([note]);
     setSelectedId(note.id);
@@ -512,7 +514,7 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  if (appView === 'uml') {
+  if (mode === 'offline' && appView === 'uml') {
     return (
       <LiveUmlWorkspace
         plantUmlSource={liveUmlSource}
@@ -523,6 +525,7 @@ export default function App() {
         themePreference={themePreference}
         onTheme={cycleTheme}
         onClose={() => setAppView('notes')}
+        onExit={lock}
         canInstall={canInstall}
         onInstall={install}
       />
@@ -534,7 +537,6 @@ export default function App() {
       <UnlockScreen
         onUnlock={performUnlock}
         onOffline={startOfflineMode}
-        onLiveDiagram={() => setAppView('uml')}
         theme={themePreference}
         onTheme={cycleTheme}
         canInstall={canInstall}
@@ -558,7 +560,9 @@ export default function App() {
         <div className="topbar-actions">
           <span className={`save-state save-${saveState}`}>{saveLabel(saveState)}</span>
           {canInstall && <button className="ghost-button" onClick={() => void install()}>Install</button>}
-          <button className="ghost-button" onClick={() => setAppView('uml')}>Live Diagram</button>
+          {isOfflineMode && (
+            <button className="ghost-button" onClick={() => setAppView('uml')}>Live Diagram</button>
+          )}
           <ThemeButton preference={themePreference} onClick={cycleTheme} />
           <button className="ghost-button" onClick={lock}>{isOfflineMode ? 'Exit' : 'Lock'}</button>
         </div>
@@ -566,7 +570,7 @@ export default function App() {
 
       {isOfflineMode && (
         <div className="offline-banner">
-          Private offline session: note content stays in memory only. No notes API or D1 calls. Mermaid and PlantUML render locally. Export before closing.
+          Private Offline Mode: Offline Notes, Live PlantUML and Live Mermaid are memory-only. No notes API or D1 calls. Export before closing.
         </div>
       )}
       {globalError && <div className="global-error">{globalError}</div>}
