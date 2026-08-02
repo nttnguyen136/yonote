@@ -11,11 +11,11 @@
 - Phát hiện conflict khi hai tab cùng sửa một note.
 - Markdown + GitHub Flavored Markdown.
 - Mermaid render trực tiếp trong browser ở chế độ `securityLevel: strict`.
-- PlantUML render qua API serverless, proxy đến Kroki.
-- Chặn các directive PlantUML `!include`, `!includeurl`, `!include_many`, `!import`.
+- PlantUML render hoàn toàn trong browser bằng `@plantuml/core`; không gửi source đến server.
+- Chặn include/import đến file hoặc URL bên ngoài; vẫn cho phép standard-library include dạng `!include <C4/...>` khi bundle hỗ trợ.
 - Responsive: sidebar/editor/preview trên desktop; Notes/Edit/Preview theo tab trên mobile.
 - Theme System/Light/Dark, ghi nhớ lựa chọn giao diện trên thiết bị.
-- Private Offline Mode: note chỉ tồn tại trong RAM, không gọi notes API, không D1 và không gửi PlantUML.
+- Private Offline Mode: note chỉ tồn tại trong RAM, không gọi notes API, không D1; Mermaid và PlantUML đều render local.
 - Progressive Web App: có thể cài trên mobile/desktop và mở giao diện khi không có mạng.
 - Export note thành file `.md`.
 - Key và session token không được lưu trong Local Storage hoặc Session Storage.
@@ -26,7 +26,7 @@
 
 - Nhập `ACCESS_KEY`.
 - Đọc và ghi notes qua Worker API và D1.
-- Mermaid render trong browser; PlantUML gửi đến Worker/Kroki.
+- Mermaid và PlantUML đều render trực tiếp trong browser; diagram source không đi qua Worker.
 
 ### Private Offline Mode
 
@@ -35,7 +35,7 @@
 - Nội dung note chỉ giữ trong memory của tab/app hiện tại.
 - Refresh, đóng app, Lock hoặc Exit sẽ xóa toàn bộ note offline.
 - Dùng **Export** trước khi thoát để giữ file Markdown.
-- Mermaid vẫn hoạt động trong browser. PlantUML chỉ hiển thị source và không gọi renderer.
+- Mermaid và PlantUML đều hoạt động offline sau khi PWA đã cache application shell và PlantUML assets.
 
 Theme preference được lưu riêng trong `localStorage`; nội dung note offline không được lưu vào `localStorage`, `sessionStorage` hoặc IndexedDB.
 
@@ -52,13 +52,12 @@ Sau lần mở online đầu tiên, service worker cache application shell để
 ```text
 React + Vite static assets + PWA service worker
           │
-          ├── Markdown + Mermaid trong browser
+          ├── Markdown + Mermaid + PlantUML trong browser
           │
           ▼
 Cloudflare Worker
           ├── POST /api/unlock
           ├── CRUD /api/notes
-          ├── POST /api/plantuml
           └── D1 binding
 ```
 
@@ -156,9 +155,10 @@ Tên database thực tế có thể khác khi dùng automatic provisioning; ki�
 npx wrangler d1 list
 ```
 
-## Lưu ý PlantUML
+## PlantUML offline
 
-PlantUML source được gửi từ Worker đến dịch vụ Kroki public để tạo SVG. Không nên đặt thiết kế mật hoặc dữ liệu nội bộ nhạy cảm trong block PlantUML. Mermaid không có giới hạn này vì được render trực tiếp trong browser.
+PlantUML được render trực tiếp trong browser bằng engine TeaVM từ package `@plantuml/core`. Diagram source không được gửi đến Worker, Kroki hoặc PlantUML Server. Hai file `plantuml.js` và `viz-global.js` được copy từ dependency vào static assets trong bước build và được service worker cache để dùng offline.
+Renderer dùng một hàng đợi tuần tự vì engine PlantUML browser chia sẻ internal state giữa các lần render.
 
 Cú pháp:
 
@@ -184,14 +184,13 @@ flowchart LR
 
 - Tối đa 500 notes được tải vào một phiên.
 - Một note tối đa khoảng 1 MB UTF-8.
-- PlantUML source tối đa 100 KB.
 - Token hợp lệ 12 giờ nhưng chỉ được giữ trong memory; refresh vẫn phải nhập Key lại.
 
 ## Kiểm tra Offline Mode
 
 1. Mở YONOTE online ít nhất một lần để cài service worker.
 2. Chọn **Open private offline mode**.
-3. Trong DevTools Network, lọc `api`: không có request `/api/unlock`, `/api/notes` hoặc `/api/plantuml`.
+3. Trong DevTools Network, lọc `api`: không có request `/api/unlock` hoặc `/api/notes`.
 4. Bật chế độ Offline của browser và reload app đã cài.
-5. Mermaid vẫn render; PlantUML hiển thị thông báo không gửi source ra ngoài.
+5. Mermaid và PlantUML vẫn render; không có request đến Kroki hoặc PlantUML Server.
 6. Exit/Lock hoặc đóng app: note offline bị xóa.

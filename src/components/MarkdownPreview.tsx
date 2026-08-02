@@ -6,13 +6,9 @@ import { PlantUmlBlock } from './PlantUmlBlock';
 
 export function MarkdownPreview({
   content,
-  token,
-  offlineMode,
   theme,
 }: {
   content: string;
-  token: string | null;
-  offlineMode: boolean;
   theme: 'light' | 'dark';
 }) {
   return (
@@ -29,16 +25,7 @@ export function MarkdownPreview({
 
             if (language === 'mermaid') return <MermaidBlock source={source} theme={theme} />;
             if (language === 'plantuml' || language === 'puml') {
-              if (offlineMode || !token) {
-                return (
-                  <div className="diagram-unavailable">
-                    <strong>PlantUML is disabled in private offline mode.</strong>
-                    <span>No source is posted to a remote renderer.</span>
-                    <pre><code>{source}</code></pre>
-                  </div>
-                );
-              }
-              return <PlantUmlBlock source={source} token={token} />;
+              return <PlantUmlBlock source={source} theme={theme} />;
             }
 
             return (

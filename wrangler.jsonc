@@ -10,9 +10,9 @@
   },
   "d1_databases": [
     {
-    "binding": "DB",
-    "database_name": "yonote-db",
-    "database_id": "1bb166b9-9a00-4b22-b27a-b1fc118a7840"
+      "binding": "DB",
+      "database_name": "yonote-db",
+      "database_id": "1bb166b9-9a00-4b22-b27a-b1fc118a7840"
     }
   ],
   "secrets": {

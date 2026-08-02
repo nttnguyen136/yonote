@@ -27,7 +27,14 @@ flowchart LR
   Memory -. no network .-> D1
 \`\`\`
 
-PlantUML is unavailable in offline mode because it requires a server renderer.
+\`\`\`plantuml
+@startuml
+Browser -> PlantUML: Render locally
+PlantUML --> Browser: SVG
+@enduml
+\`\`\`
+
+PlantUML and Mermaid are rendered locally without sending diagram source to a server.
 `;
 
 function formatDate(timestamp: number): string {
@@ -530,7 +537,7 @@ export default function App() {
 
       {isOfflineMode && (
         <div className="offline-banner">
-          Private offline session: note content stays in memory only. No notes API or D1 calls. Export before closing. PlantUML is disabled.
+          Private offline session: note content stays in memory only. No notes API or D1 calls. Mermaid and PlantUML render locally. Export before closing.
         </div>
       )}
       {globalError && <div className="global-error">{globalError}</div>}
@@ -609,8 +616,6 @@ export default function App() {
           {selectedNote ? (
             <MarkdownPreview
               content={selectedNote.content}
-              token={token}
-              offlineMode={isOfflineMode}
               theme={resolvedTheme}
             />
           ) : (

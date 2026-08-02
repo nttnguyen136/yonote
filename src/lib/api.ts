@@ -67,27 +67,3 @@ export async function updateNote(token: string, note: Note): Promise<Note> {
 export async function deleteNote(token: string, id: string): Promise<void> {
   await request<void>(`/api/notes/${id}`, token, { method: 'DELETE' });
 }
-
-export async function renderPlantUml(token: string, source: string): Promise<Blob> {
-  const response = await fetch('/api/plantuml', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ source }),
-  });
-
-  if (!response.ok) {
-    let message = `PlantUML rendering failed (${response.status})`;
-    try {
-      const data = (await response.json()) as { error?: string };
-      if (data.error) message = data.error;
-    } catch {
-      // Keep the generic message.
-    }
-    throw new ApiError(message, response.status);
-  }
-
-  return response.blob();
-}

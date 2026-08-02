@@ -48,7 +48,6 @@ interface Note {
 
 const encoder = new TextEncoder();
 const MAX_NOTE_BYTES = 1_000_000;
-const MAX_PLANTUML_BYTES = 100_000;
 const TOKEN_TTL_SECONDS = 12 * 60 * 60;
 let schemaReady: Promise<void> | undefined;
 
@@ -297,41 +296,6 @@ async function deleteNote(env: Env, id: string): Promise<Response> {
   return new Response(null, { status: 204, headers: apiHeaders() });
 }
 
-async function renderPlantUml(request: Request): Promise<Response> {
-  const body = await parseJson<{ source?: unknown }>(request);
-  if (!body || typeof body.source !== 'string') return error('PlantUML source is required.', 400);
-  if (encoder.encode(body.source).byteLength > MAX_PLANTUML_BYTES) {
-    return error('PlantUML source is too large.', 413);
-  }
-  if (/^\s*!(?:include|includeurl|include_many|import)\b/im.test(body.source)) {
-    return error('External PlantUML includes are disabled.', 400);
-  }
-
-  const upstream = await fetch('https://kroki.io/plantuml/svg', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-      Accept: 'image/svg+xml',
-      'User-Agent': 'YONOTE/0.1',
-    },
-    body: body.source,
-    signal: AbortSignal.timeout(8_000),
-  });
-
-  if (!upstream.ok) return error('PlantUML rendering failed.', 502);
-  const contentType = upstream.headers.get('Content-Type') ?? '';
-  if (!contentType.includes('image/svg+xml')) return error('Unexpected PlantUML response.', 502);
-
-  return new Response(upstream.body, {
-    status: 200,
-    headers: apiHeaders({
-      'Content-Type': 'image/svg+xml; charset=utf-8',
-      'Content-Security-Policy': "sandbox; default-src 'none'; style-src 'unsafe-inline'",
-      'Cache-Control': 'private, max-age=3600',
-    }),
-  });
-}
-
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
@@ -360,9 +324,6 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     return error('Method not allowed.', 405);
   }
 
-  if (url.pathname === '/api/plantuml' && request.method === 'POST') {
-    return renderPlantUml(request);
-  }
 
   if (url.pathname === '/api/health' && request.method === 'GET') {
     return json({ status: 'ok' });
@@ -378,7 +339,7 @@ function secureAssetResponse(response: Response): Response {
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    "default-src 'self'; script-src 'self'; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
   );
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
