@@ -1,84 +1,218 @@
 # YONOTE
 
-Ứng dụng ghi chú online dạng single-user, triển khai hoàn toàn trên Cloudflare Workers + D1.
+YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai trên Cloudflare Workers + D1. Ứng dụng hỗ trợ Markdown, Mermaid, PlantUML, Progressive Web App và một chế độ offline tách biệt hoàn toàn khỏi dữ liệu cloud.
+
+> README này mô tả phạm vi tính năng mới nhất, bao gồm tags, filter/sort, share note, import Markdown, nhiều theme và Live Diagram chỉ hoạt động trong Private Offline Mode.
 
 ## Tính năng
 
-- Mỗi lần tải lại trang phải nhập Access Key.
-- Không có tài khoản hoặc màn hình đăng ký.
+### Ghi chú
+
+- Mỗi lần tải lại trang phải nhập `ACCESS_KEY` để mở Cloud Notes.
+- Không có tài khoản, đăng ký hoặc hồ sơ người dùng.
 - Tạo, sửa, xóa, tìm kiếm và ghim ghi chú.
-- Autosave sau 800 ms, hỗ trợ `Ctrl/Cmd + S`.
+- Autosave sau 800 ms và hỗ trợ `Ctrl/Cmd + S`.
 - Phát hiện conflict khi hai tab cùng sửa một note.
 - Markdown + GitHub Flavored Markdown.
-- Mermaid render trực tiếp trong browser ở chế độ `securityLevel: strict`.
-- PlantUML render hoàn toàn trong browser bằng `@plantuml/core`; không gửi source đến server.
-- Live Diagram workspace độc lập với Markdown: chuyển giữa PlantUML và Mermaid, editor + live preview, template, import/export source và SVG.
-- Chặn include/import đến file hoặc URL bên ngoài; vẫn cho phép standard-library include dạng `!include <C4/...>` khi bundle hỗ trợ.
-- Responsive: sidebar/editor/preview trên desktop; Notes/Edit/Preview theo tab trên mobile.
-- Theme System/Light/Dark, ghi nhớ lựa chọn giao diện trên thiết bị.
-- Private Offline Mode: note chỉ tồn tại trong RAM, không gọi notes API, không D1; Mermaid và PlantUML đều render local.
-- Progressive Web App: có thể cài trên mobile/desktop và mở giao diện khi không có mạng.
 - Export note thành file `.md`.
-- Key và session token không được lưu trong Local Storage hoặc Session Storage.
+- Import file `.md` hoặc `.markdown` thành note mới.
+  - Ưu tiên heading `#` đầu tiên làm title.
+  - Nếu không có heading, dùng tên file làm title.
+- Share note qua Web Share API của thiết bị.
+  - Ưu tiên chia sẻ file Markdown khi browser hỗ trợ.
+  - Fallback sang copy Markdown vào clipboard.
+  - YONOTE không tạo public link và không upload note sang dịch vụ chia sẻ riêng.
+
+### Tags, filter và sort
+
+- Gắn nhiều tag cho một note.
+- Hiển thị tag trong danh sách note và khu vực editor.
+- Tìm kiếm theo title, content và tag.
+- Filter note theo tag.
+- Sort theo:
+  - Cập nhật gần nhất.
+  - Tạo mới nhất.
+  - Title A–Z.
+  - Title Z–A.
+- Note được ghim vẫn được ưu tiên hiển thị trước trong từng chế độ sắp xếp.
+
+### Diagram
+
+- Mermaid render trực tiếp trong browser với `securityLevel: strict`.
+- PlantUML render hoàn toàn trong browser bằng `@plantuml/core`; source không được gửi đến Worker, Kroki hoặc PlantUML Server.
+- Hỗ trợ Mermaid và PlantUML bên trong Markdown.
+- Live Diagram workspace độc lập với Markdown, chỉ xuất hiện trong Private Offline Mode.
+- Live Diagram hỗ trợ:
+  - PlantUML và Mermaid.
+  - Editor + live preview.
+  - Template có sẵn.
+  - Import source.
+  - Export source và SVG.
+- Chặn PlantUML include/import đến file hoặc URL bên ngoài.
+- Vẫn cho phép standard-library include dạng `!include <C4/...>` khi bundle hiện tại hỗ trợ.
+
+### UX, responsive và theme
+
+- Responsive cho desktop, tablet và mobile.
+- Desktop: danh sách note, editor và preview theo layout nhiều cột.
+- Tablet/mobile: điều hướng rõ ràng giữa Notes, Edit và Preview.
+- Trên mobile, ô Note title có nút `×` để xóa nhanh toàn bộ title.
+- Hỗ trợ các theme:
+  - System.
+  - Light.
+  - Dark.
+  - Midnight.
+  - Sepia.
+  - Forest.
+- Theme preference được ghi nhớ trên thiết bị.
+- Theme được áp dụng trước khi React render để giảm hiện tượng nháy giao diện.
+
+### Progressive Web App
+
+- Có thể cài đặt trên mobile và desktop.
+- Service worker cache application shell và các engine diagram cần thiết.
+- Có thể mở giao diện sau khi đã mất mạng, nếu ứng dụng đã được mở online ít nhất một lần.
+- API request không được cache, replay hoặc đưa vào background sync.
 
 ## Chế độ hoạt động
 
-### Cloud mode
+### Cloud Mode
 
-- Nhập `ACCESS_KEY`.
-- Đọc và ghi notes qua Worker API và D1.
-- Mermaid và PlantUML đều render trực tiếp trong browser; diagram source không đi qua Worker.
-
-### Live Diagram
-
-- Mở trực tiếp từ màn hình khóa hoặc nút **Live Diagram** trong workspace Notes.
-- PlantUML và Mermaid source được giữ riêng trong RAM và không lưu vào D1, `localStorage`, `sessionStorage` hoặc IndexedDB.
-- Preview tự render sau 400 ms khi source thay đổi.
-- PlantUML có template Sequence, Component, Class và Activity; Mermaid có Flowchart, Sequence, Class và State.
-- Hỗ trợ import `.puml`, `.plantuml`, `.mmd`, `.mermaid`, `.txt`; export PlantUML `.puml`, Mermaid `.mmd` và diagram `.svg`.
-- Chuyển qua lại giữa Notes và Live Diagram vẫn giữ cả hai source trong phiên hiện tại; refresh/đóng app sẽ xóa source.
-- Hoạt động offline sau khi PWA đã cache application shell và PlantUML assets; Mermaid nằm trong JavaScript bundle của ứng dụng.
+- Người dùng nhập `ACCESS_KEY`.
+- Notes được đọc và ghi qua Cloudflare Worker API và D1.
+- Tags được lưu cùng note.
+- Import Markdown tạo note mới và lưu vào D1.
+- Share note chỉ dùng khả năng share của thiết bị; không tạo public URL trên server.
+- Mermaid và PlantUML đều render cục bộ trong browser.
+- Diagram source không đi qua Worker.
 
 ### Private Offline Mode
 
-- Bỏ qua Access Key và toàn bộ notes API.
-- Không đọc/ghi D1, không `POST`, không queue hoặc background sync.
-- Nội dung note chỉ giữ trong memory của tab/app hiện tại.
-- Refresh, đóng app, Lock hoặc Exit sẽ xóa toàn bộ note offline.
-- Dùng **Export** trước khi thoát để giữ file Markdown.
-- Mermaid và PlantUML đều hoạt động offline sau khi PWA đã cache application shell và PlantUML assets.
+Private Offline Mode là một workspace riêng, không dùng Cloud Notes.
 
-Theme preference được lưu riêng trong `localStorage`; nội dung note offline không được lưu vào `localStorage`, `sessionStorage` hoặc IndexedDB.
+Bao gồm:
+
+- Offline Notes.
+- Live Diagram:
+  - PlantUML.
+  - Mermaid.
+
+Đặc điểm:
+
+- Bỏ qua `ACCESS_KEY` và toàn bộ notes API.
+- Không đọc hoặc ghi D1.
+- Không gửi `POST` note hoặc diagram.
+- Không queue request và không background sync.
+- Note, tags và diagram source chỉ tồn tại trong RAM của tab/app hiện tại.
+- Không lưu nội dung vào `localStorage`, `sessionStorage` hoặc IndexedDB.
+- Import Markdown chỉ đọc file cục bộ và tạo note trong RAM.
+- Refresh, đóng app hoặc chọn Exit sẽ xóa toàn bộ:
+  - Offline notes.
+  - Tags của offline notes.
+  - PlantUML source.
+  - Mermaid source.
+- Dùng Export hoặc Share trước khi thoát để giữ nội dung.
+
+Theme preference được lưu riêng trong `localStorage`; nội dung note và diagram offline không được lưu tại đó.
+
+## Live Diagram
+
+Live Diagram chỉ khả dụng bên trong Private Offline Mode.
+
+### PlantUML
+
+Template mặc định:
+
+- Sequence.
+- Component.
+- Class.
+- Activity.
+
+Hỗ trợ import:
+
+- `.puml`
+- `.plantuml`
+- `.txt`
+
+Hỗ trợ export:
+
+- `.puml`
+- `.svg`
+
+### Mermaid
+
+Template mặc định:
+
+- Flowchart.
+- Sequence.
+- Class.
+- State.
+
+Hỗ trợ import:
+
+- `.mmd`
+- `.mermaid`
+- `.txt`
+
+Hỗ trợ export:
+
+- `.mmd`
+- `.svg`
+
+Preview tự render sau một khoảng debounce ngắn khi source thay đổi. Source của PlantUML và Mermaid được giữ riêng trong RAM.
 
 ## Cài đặt PWA
 
-Sau lần mở online đầu tiên, service worker cache application shell để YONOTE có thể mở khi mất mạng.
+Sau lần mở online đầu tiên, service worker cache application shell để YONOTE có thể khởi động khi mất mạng.
 
-- Chrome/Edge desktop hoặc Android: chọn nút **Install app** trong màn hình mở khóa khi browser hỗ trợ.
+- Chrome/Edge desktop hoặc Android: chọn **Install app** khi browser hỗ trợ.
 - iOS/iPadOS Safari: chọn **Share → Add to Home Screen**.
-- API request không bao giờ được service worker cache, replay hoặc đưa vào background queue.
+- Sau khi deploy phiên bản mới, có thể cần reload hai lần hoặc đóng/mở lại PWA để service worker thay cache cũ.
 
 ## Kiến trúc
 
 ```text
-React + Vite static assets + PWA service worker
-          │
-          ├── Notes: Markdown + Mermaid + PlantUML trong browser
-          ├── Live Diagram: PlantUML + Mermaid editor và live SVG preview
-          │
-          ▼
-Cloudflare Worker
-          ├── POST /api/unlock
-          ├── CRUD /api/notes
-          └── D1 binding
+YONOTE PWA
+├── Cloud Mode
+│   ├── React Notes UI
+│   ├── Markdown / Mermaid / PlantUML local renderer
+│   └── Cloudflare Worker API
+│       ├── POST /api/unlock
+│       ├── GET /api/notes
+│       ├── POST /api/notes
+│       ├── PATCH /api/notes/:id
+│       ├── DELETE /api/notes/:id
+│       └── Cloudflare D1
+│
+└── Private Offline Mode
+    ├── Offline Notes in RAM
+    ├── Tags in RAM
+    ├── Markdown / Mermaid / PlantUML local renderer
+    └── Live Diagram in RAM
 ```
 
-Worker và static assets được deploy thành một đơn vị duy nhất. D1 được Wrangler tự động provision từ binding `DB`; Worker tự tạo schema khi API được gọi lần đầu.
+Worker và static assets được deploy thành một đơn vị. D1 được bind cố định trong `wrangler.jsonc` bằng `database_name` và `database_id`.
+
+Worker có thể tự bảo đảm schema cơ bản khi API được gọi. Các thay đổi schema mới nên được quản lý bằng migrations để dữ liệu production được cập nhật có kiểm soát.
+
+## Bảo mật và riêng tư
+
+- `ACCESS_KEY` và `TOKEN_SECRET` được cấu hình dưới dạng Cloudflare Worker Secrets.
+- Access Key không được lưu trong `localStorage` hoặc `sessionStorage`.
+- Session token chỉ được giữ trong memory.
+- Refresh trang yêu cầu nhập Access Key lại.
+- Token có thời hạn mặc định 12 giờ, nhưng sẽ mất ngay khi reload do không được persist.
+- Note và diagram trong Private Offline Mode chỉ tồn tại trong RAM.
+- PlantUML và Mermaid render local.
+- Share note chỉ gửi nội dung đến ứng dụng đích mà người dùng chủ động chọn qua Share Sheet của hệ điều hành.
+- CSP cho phép WebAssembly cần thiết cho PlantUML bằng `'wasm-unsafe-eval'`, không bật JavaScript `'unsafe-eval'`.
 
 ## Yêu cầu
 
 - Node.js 20 trở lên.
+- npm.
 - Tài khoản Cloudflare.
+- Cloudflare D1 database.
 
 ## Chạy local
 
@@ -102,15 +236,53 @@ npm run dev
 
 D1 local được Wrangler lưu trong thư mục `.wrangler`.
 
+## Build
+
+```bash
+npm run build
+```
+
+Build sẽ:
+
+1. Type-check TypeScript.
+2. Build React SPA bằng Vite.
+3. Copy PlantUML browser assets vào static output.
+4. Bundle Mermaid cùng frontend.
+5. Tạo Worker deployment bundle và static assets.
+
 ## Deploy
 
-### 1. Đăng nhập Cloudflare
+### Cách 1: Cloudflare Git integration
+
+Kết nối repository GitHub với Cloudflare Workers Builds.
+
+Cấu hình khuyến nghị:
+
+```text
+Production branch: main
+Build command: npm run build
+Deploy command: npx wrangler deploy
+Root directory: /
+```
+
+Thêm các Worker Secrets trong Cloudflare Dashboard:
+
+```text
+ACCESS_KEY
+TOKEN_SECRET
+```
+
+Không đưa secret production vào GitHub.
+
+### Cách 2: Deploy bằng Wrangler
+
+Đăng nhập Cloudflare:
 
 ```bash
 npx wrangler login
 ```
 
-### 2. Tạo file secret production
+Tạo file secret production:
 
 ```bash
 cp .env.production.example .env.production
@@ -123,56 +295,49 @@ ACCESS_KEY=your-production-access-key
 TOKEN_SECRET=a-long-random-secret-at-least-32-characters
 ```
 
-Có thể tạo `TOKEN_SECRET` bằng Node.js:
+Tạo `TOKEN_SECRET`:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 ```
 
-### 3. Build và deploy
+Deploy:
 
 ```bash
 npm run deploy
 ```
-
-Lệnh này sẽ:
-
-1. Build React SPA.
-2. Tạo D1 database nếu chưa tồn tại.
-3. Upload `ACCESS_KEY` và `TOKEN_SECRET` dưới dạng Worker Secrets.
-4. Deploy Worker cùng static assets.
-5. Trả về URL dạng `https://yonote.<subdomain>.workers.dev`.
 
 ## Đổi Access Key
 
-Sửa `.env.production`, sau đó chạy lại:
+Cập nhật secret `ACCESS_KEY` trên Cloudflare Dashboard hoặc trong `.env.production`, sau đó deploy lại.
 
-```bash
-npm run deploy
-```
+Không cần thay đổi source code.
 
-## Database migration tùy chọn
+## Database migration
 
-Worker tự tạo schema nên không bắt buộc chạy migration. File `migrations/0001_init.sql` được giữ để quản lý schema thủ công khi cần.
-
-Sau khi D1 đã được provision và `wrangler.jsonc` có `database_id`, có thể chạy:
-
-```bash
-npx wrangler d1 migrations apply yonote-db --remote
-```
-
-Tên database thực tế có thể khác khi dùng automatic provisioning; kiểm tra bằng:
+Kiểm tra database:
 
 ```bash
 npx wrangler d1 list
 ```
 
-## Live Diagram, Mermaid và PlantUML offline
+Áp dụng migration production:
 
-Live Diagram hỗ trợ hai engine local. Mermaid dùng package `mermaid` đã bundle cùng ứng dụng; PlantUML dùng engine TeaVM từ package `@plantuml/core`. PlantUML được render trực tiếp trong browser. Diagram source không được gửi đến Worker, Kroki hoặc PlantUML Server. Hai file `plantuml.js` và `viz-global.js` được copy từ dependency vào static assets trong bước build và được service worker cache để dùng offline.
-Renderer dùng một hàng đợi tuần tự vì engine PlantUML browser chia sẻ internal state giữa các lần render.
+```bash
+npx wrangler d1 migrations apply yonote-db --remote
+```
 
-Cú pháp:
+Áp dụng migration local:
+
+```bash
+npx wrangler d1 migrations apply yonote-db --local
+```
+
+Luôn backup dữ liệu hoặc kiểm tra migration trên D1 local trước khi chạy production.
+
+## Cú pháp diagram trong Markdown
+
+PlantUML:
 
 ````markdown
 ```plantuml
@@ -192,17 +357,52 @@ flowchart LR
 ```
 ````
 
+## Import Markdown
+
+YONOTE hỗ trợ `.md` và `.markdown`.
+
+Quy tắc tạo title:
+
+1. Dùng heading cấp 1 đầu tiên, ví dụ `# Project Notes`.
+2. Nếu không có heading cấp 1, dùng tên file không có extension.
+3. Nếu vẫn không xác định được title, dùng `Untitled note`.
+
+Trong Cloud Mode, note được lưu vào D1. Trong Private Offline Mode, note chỉ được giữ trong RAM.
+
+## Share note
+
+Khi chọn Share:
+
+1. YONOTE tạo nội dung Markdown từ title, tags và content.
+2. Nếu browser hỗ trợ chia sẻ file, YONOTE mở native Share Sheet với file `.md`.
+3. Nếu chỉ hỗ trợ chia sẻ text, YONOTE gửi Markdown dạng text.
+4. Nếu Web Share API không khả dụng, YONOTE copy Markdown vào clipboard.
+
+Share không tạo public link và không thay đổi dữ liệu note.
+
 ## Giới hạn mặc định
 
 - Tối đa 500 notes được tải vào một phiên.
 - Một note tối đa khoảng 1 MB UTF-8.
-- Token hợp lệ 12 giờ nhưng chỉ được giữ trong memory; refresh vẫn phải nhập Key lại.
+- Session token có thời hạn 12 giờ nhưng chỉ được giữ trong memory.
+- PlantUML browser engine và Graphviz assets làm tăng kích thước PWA cache.
+- Một số PlantUML standard-library lớn có thể không có sẵn trong bundle mặc định.
+- Private Offline Mode không phải local database; dữ liệu sẽ mất khi thoát hoặc reload.
 
-## Kiểm tra Offline Mode
+## Kiểm tra Private Offline Mode
 
-1. Mở YONOTE online ít nhất một lần để cài service worker.
+1. Mở YONOTE online ít nhất một lần để service worker cache application shell.
 2. Chọn **Open private offline mode**.
-3. Trong DevTools Network, lọc `api`: không có request `/api/unlock` hoặc `/api/notes`.
-4. Bật chế độ Offline của browser và reload app đã cài.
-5. Mermaid và PlantUML vẫn render; không có request đến Kroki hoặc PlantUML Server.
-6. Exit/Lock hoặc đóng app: note offline bị xóa.
+3. Tạo note, tags hoặc diagram.
+4. Trong DevTools Network, lọc `api`:
+   - Không có `/api/unlock`.
+   - Không có `/api/notes`.
+5. Bật Offline trong DevTools hoặc chế độ máy bay.
+6. Mermaid và PlantUML vẫn render.
+7. Không có request đến Kroki hoặc PlantUML Server.
+8. Export hoặc Share nội dung cần giữ.
+9. Chọn Exit hoặc reload: toàn bộ dữ liệu offline phải bị xóa.
+
+## License
+
+Chưa xác định. Thêm file `LICENSE` trước khi public hoặc phân phối rộng rãi.
