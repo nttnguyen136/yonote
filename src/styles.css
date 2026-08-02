@@ -325,7 +325,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .unlock-card { padding: 24px; }
 }
 
-/* Live UML workspace */
+/* Live Diagram workspace */
 .live-uml-button {
   border: 1px solid var(--accent-border);
   border-radius: 7px;
@@ -533,4 +533,58 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   .live-uml-editor { padding: 14px; font-size: 15px; }
   .live-uml-preview-canvas { padding: 10px; }
   .live-uml-preview-canvas .plantuml-diagram > img { max-height: calc(100dvh - 300px); }
+}
+
+/* Live Diagram language switcher */
+.live-diagram-language-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.live-diagram-language-tabs button {
+  min-width: 112px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  color: var(--muted);
+  background: transparent;
+  font-weight: 700;
+}
+.live-diagram-language-tabs button:hover {
+  color: var(--text-strong);
+  background: var(--surface-raised);
+}
+.live-diagram-language-tabs button.active {
+  color: var(--accent);
+  border-color: var(--border);
+  background: var(--bg);
+}
+.live-uml-preview-canvas > .diagram {
+  min-height: calc(100% - 36px);
+  margin: 0;
+  display: grid;
+  place-items: center;
+}
+.live-uml-preview-canvas > .mermaid-diagram svg {
+  width: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 270px);
+}
+
+@media (max-width: 767px) {
+  .live-diagram-language-tabs {
+    padding: 6px 10px 0;
+  }
+  .live-diagram-language-tabs button {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+  }
+  .live-uml-preview-canvas > .mermaid-diagram svg {
+    max-height: calc(100dvh - 340px);
+  }
 }

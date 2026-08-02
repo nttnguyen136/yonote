@@ -1,10 +1,24 @@
 import mermaid from 'mermaid';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
-export function MermaidBlock({ source, theme }: { source: string; theme: 'light' | 'dark' }) {
+export function MermaidBlock({
+  source,
+  theme,
+  onRendered,
+  onError,
+}: {
+  source: string;
+  theme: 'light' | 'dark';
+  onRendered?: (svg: string) => void;
+  onError?: (message: string) => void;
+}) {
   const reactId = useId();
   const [svg, setSvg] = useState('');
   const [error, setError] = useState('');
+  const onRenderedRef = useRef(onRendered);
+  const onErrorRef = useRef(onError);
+  onRenderedRef.current = onRendered;
+  onErrorRef.current = onError;
 
   useEffect(() => {
     let active = true;
@@ -17,19 +31,21 @@ export function MermaidBlock({ source, theme }: { source: string; theme: 'light'
     });
 
     setSvg('');
+    setError('');
     void mermaid
       .render(id, source)
       .then(({ svg: output }) => {
-        if (active) {
-          setSvg(output);
-          setError('');
-        }
+        if (!active) return;
+        setSvg(output);
+        setError('');
+        onRenderedRef.current?.(output);
       })
       .catch((cause: unknown) => {
-        if (active) {
-          setSvg('');
-          setError(cause instanceof Error ? cause.message : 'Invalid Mermaid diagram.');
-        }
+        if (!active) return;
+        const message = cause instanceof Error ? cause.message : 'Invalid Mermaid diagram.';
+        setSvg('');
+        setError(message);
+        onErrorRef.current?.(message);
       });
 
     return () => {

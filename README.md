@@ -12,7 +12,7 @@
 - Markdown + GitHub Flavored Markdown.
 - Mermaid render trực tiếp trong browser ở chế độ `securityLevel: strict`.
 - PlantUML render hoàn toàn trong browser bằng `@plantuml/core`; không gửi source đến server.
-- Live UML workspace độc lập với Markdown: editor + live preview, template, import `.puml`, export `.puml`/`.svg`.
+- Live Diagram workspace độc lập với Markdown: chuyển giữa PlantUML và Mermaid, editor + live preview, template, import/export source và SVG.
 - Chặn include/import đến file hoặc URL bên ngoài; vẫn cho phép standard-library include dạng `!include <C4/...>` khi bundle hỗ trợ.
 - Responsive: sidebar/editor/preview trên desktop; Notes/Edit/Preview theo tab trên mobile.
 - Theme System/Light/Dark, ghi nhớ lựa chọn giao diện trên thiết bị.
@@ -29,15 +29,15 @@
 - Đọc và ghi notes qua Worker API và D1.
 - Mermaid và PlantUML đều render trực tiếp trong browser; diagram source không đi qua Worker.
 
-### Live UML
+### Live Diagram
 
-- Mở trực tiếp từ màn hình khóa hoặc nút **Live UML** trong workspace Notes.
-- PlantUML source được giữ trong RAM và không lưu vào D1, `localStorage`, `sessionStorage` hoặc IndexedDB.
+- Mở trực tiếp từ màn hình khóa hoặc nút **Live Diagram** trong workspace Notes.
+- PlantUML và Mermaid source được giữ riêng trong RAM và không lưu vào D1, `localStorage`, `sessionStorage` hoặc IndexedDB.
 - Preview tự render sau 400 ms khi source thay đổi.
-- Có template Sequence, Component, Class và Activity.
-- Hỗ trợ import `.puml`, `.plantuml`, `.txt`; export source `.puml` và diagram `.svg`.
-- Chuyển qua lại giữa Notes và Live UML vẫn giữ source trong phiên hiện tại; refresh/đóng app sẽ xóa source.
-- Hoạt động offline sau khi PWA đã cache PlantUML assets.
+- PlantUML có template Sequence, Component, Class và Activity; Mermaid có Flowchart, Sequence, Class và State.
+- Hỗ trợ import `.puml`, `.plantuml`, `.mmd`, `.mermaid`, `.txt`; export PlantUML `.puml`, Mermaid `.mmd` và diagram `.svg`.
+- Chuyển qua lại giữa Notes và Live Diagram vẫn giữ cả hai source trong phiên hiện tại; refresh/đóng app sẽ xóa source.
+- Hoạt động offline sau khi PWA đã cache application shell và PlantUML assets; Mermaid nằm trong JavaScript bundle của ứng dụng.
 
 ### Private Offline Mode
 
@@ -64,7 +64,7 @@ Sau lần mở online đầu tiên, service worker cache application shell để
 React + Vite static assets + PWA service worker
           │
           ├── Notes: Markdown + Mermaid + PlantUML trong browser
-          ├── Live UML: PlantUML editor + live SVG preview
+          ├── Live Diagram: PlantUML + Mermaid editor và live SVG preview
           │
           ▼
 Cloudflare Worker
@@ -167,9 +167,9 @@ Tên database thực tế có thể khác khi dùng automatic provisioning; ki�
 npx wrangler d1 list
 ```
 
-## Live UML và PlantUML offline
+## Live Diagram, Mermaid và PlantUML offline
 
-PlantUML được render trực tiếp trong browser bằng engine TeaVM từ package `@plantuml/core`. Diagram source không được gửi đến Worker, Kroki hoặc PlantUML Server. Hai file `plantuml.js` và `viz-global.js` được copy từ dependency vào static assets trong bước build và được service worker cache để dùng offline.
+Live Diagram hỗ trợ hai engine local. Mermaid dùng package `mermaid` đã bundle cùng ứng dụng; PlantUML dùng engine TeaVM từ package `@plantuml/core`. PlantUML được render trực tiếp trong browser. Diagram source không được gửi đến Worker, Kroki hoặc PlantUML Server. Hai file `plantuml.js` và `viz-global.js` được copy từ dependency vào static assets trong bước build và được service worker cache để dùng offline.
 Renderer dùng một hàng đợi tuần tự vì engine PlantUML browser chia sẻ internal state giữa các lần render.
 
 Cú pháp:
