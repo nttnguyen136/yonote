@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -6,12 +6,24 @@ import type {
 } from 'react';
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
-import { MarkdownEditor } from './components/MarkdownEditor';
-import { MarkdownPreview } from './components/MarkdownPreview';
 import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
-import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE, LiveUmlWorkspace } from './components/LiveUmlWorkspace';
+import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from './lib/diagramDefaults';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
+
+const MarkdownEditor = lazy(() =>
+  import('./components/MarkdownEditor').then((module) => ({ default: module.MarkdownEditor })),
+);
+const MarkdownPreview = lazy(() =>
+  import('./components/MarkdownPreview').then((module) => ({ default: module.MarkdownPreview })),
+);
+const LiveUmlWorkspace = lazy(() =>
+  import('./components/LiveUmlWorkspace').then((module) => ({ default: module.LiveUmlWorkspace })),
+);
+
+function WorkspaceLoading({ label }: { label: string }) {
+  return <div className="empty-workspace" role="status">{label}</div>;
+}
 
 type MobileView = 'notes' | 'editor' | 'preview';
 type AppView = 'notes' | 'uml';
@@ -664,19 +676,21 @@ export default function App() {
 
   if (mode === 'offline' && appView === 'uml') {
     return (
-      <LiveUmlWorkspace
-        plantUmlSource={liveUmlSource}
-        onPlantUmlSourceChange={setLiveUmlSource}
-        mermaidSource={liveMermaidSource}
-        onMermaidSourceChange={setLiveMermaidSource}
-        theme={diagramTheme}
-        themePreference={themePreference}
-        onThemeChange={setThemePreference}
-        onClose={() => setAppView('notes')}
-        onExit={lock}
-        canInstall={canInstall}
-        onInstall={install}
-      />
+      <Suspense fallback={<WorkspaceLoading label="Loading diagram workspace…" />}>
+        <LiveUmlWorkspace
+          plantUmlSource={liveUmlSource}
+          onPlantUmlSourceChange={setLiveUmlSource}
+          mermaidSource={liveMermaidSource}
+          onMermaidSourceChange={setLiveMermaidSource}
+          theme={diagramTheme}
+          themePreference={themePreference}
+          onThemeChange={setThemePreference}
+          onClose={() => setAppView('notes')}
+          onExit={lock}
+          canInstall={canInstall}
+          onInstall={install}
+        />
+      </Suspense>
     );
   }
 
@@ -880,12 +894,14 @@ export default function App() {
                 <strong>Markdown</strong>
                 <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> to save</span>
               </div>
-              <MarkdownEditor
-                value={selectedNote.content}
-                onChange={(content) => editSelected({ content })}
-                theme={diagramTheme}
-                placeholder={'# Start writing\n\n```mermaid\nflowchart LR\n  A --> B\n```'}
-              />
+              <Suspense fallback={<WorkspaceLoading label="Loading editor…" />}>
+                <MarkdownEditor
+                  value={selectedNote.content}
+                  onChange={(content) => editSelected({ content })}
+                  theme={diagramTheme}
+                  placeholder={'# Start writing\n\n```mermaid\nflowchart LR\n  A --> B\n```'}
+                />
+              </Suspense>
             </>
           ) : (
             <div className="empty-workspace">
@@ -922,7 +938,9 @@ export default function App() {
           </div>
           <div className="preview-scroll">
             {selectedNote ? (
-              <MarkdownPreview content={selectedNote.content} theme={diagramTheme} />
+              <Suspense fallback={<WorkspaceLoading label="Loading preview…" />}>
+                <MarkdownPreview content={selectedNote.content} theme={diagramTheme} />
+              </Suspense>
             ) : (
               <div className="empty-workspace">
                 <span className="empty-workspace-icon" aria-hidden="true">◫</span>

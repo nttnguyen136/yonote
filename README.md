@@ -2,7 +2,7 @@
 
 YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai trên Cloudflare Workers + D1. Ứng dụng hỗ trợ Markdown, Mermaid, PlantUML, Progressive Web App và một chế độ offline tách biệt hoàn toàn khỏi dữ liệu cloud.
 
-> README này mô tả phạm vi tính năng mới nhất, bao gồm tags, filter/sort, share note, import Markdown, nhiều theme và Live Diagram chỉ hoạt động trong Private Offline Mode.
+> README này mô tả đúng phạm vi hiện tại trên nhánh `main`: ghi chú Markdown, public read-only link, nhiều theme và Live Diagram chỉ hoạt động trong Private Offline Mode.
 
 ## Tính năng
 
@@ -15,27 +15,11 @@ YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai
 - Phát hiện conflict khi hai tab cùng sửa một note.
 - Markdown + GitHub Flavored Markdown.
 - Export note thành file `.md`.
-- Import file `.md` hoặc `.markdown` thành note mới.
-  - Ưu tiên heading `#` đầu tiên làm title.
-  - Nếu không có heading, dùng tên file làm title.
 - Chia sẻ từng Cloud Note bằng public read-only link.
   - Link dùng random share ID và không yêu cầu `ACCESS_KEY`.
   - Nội dung phản ánh phiên bản đã lưu mới nhất của note.
   - Có thể copy hoặc revoke link ngay lập tức.
   - Private Offline Mode không tạo public link.
-
-### Tags, filter và sort
-
-- Gắn nhiều tag cho một note.
-- Hiển thị tag trong danh sách note và khu vực editor.
-- Tìm kiếm theo title, content và tag.
-- Filter note theo tag.
-- Sort theo:
-  - Cập nhật gần nhất.
-  - Tạo mới nhất.
-  - Title A–Z.
-  - Title Z–A.
-- Note được ghim vẫn được ưu tiên hiển thị trước trong từng chế độ sắp xếp.
 
 ### Diagram
 
@@ -81,8 +65,6 @@ YONOTE là ứng dụng ghi chú single-user, ưu tiên riêng tư, triển khai
 
 - Người dùng nhập `ACCESS_KEY`.
 - Notes được đọc và ghi qua Cloudflare Worker API và D1.
-- Tags được lưu cùng note.
-- Import Markdown tạo note mới và lưu vào D1.
 - Có thể tạo và revoke public read-only link cho từng Cloud Note.
 - Mermaid và PlantUML đều render cục bộ trong browser.
 - Diagram source không đi qua Worker.
@@ -104,15 +86,13 @@ Bao gồm:
 - Không đọc hoặc ghi D1.
 - Không gửi `POST` note hoặc diagram.
 - Không queue request và không background sync.
-- Note, tags và diagram source chỉ tồn tại trong RAM của tab/app hiện tại.
+- Note và diagram source chỉ tồn tại trong RAM của tab/app hiện tại.
 - Không lưu nội dung vào `localStorage`, `sessionStorage` hoặc IndexedDB.
-- Import Markdown chỉ đọc file cục bộ và tạo note trong RAM.
 - Refresh, đóng app hoặc chọn Exit sẽ xóa toàn bộ:
   - Offline notes.
-  - Tags của offline notes.
   - PlantUML source.
   - Mermaid source.
-- Dùng Export hoặc Share trước khi thoát để giữ nội dung.
+- Dùng Export trước khi thoát để giữ nội dung note hoặc diagram.
 
 Theme preference được lưu riêng trong `localStorage`; nội dung note và diagram offline không được lưu tại đó.
 
@@ -189,7 +169,6 @@ YONOTE PWA
 │
 └── Private Offline Mode
     ├── Offline Notes in RAM
-    ├── Tags in RAM
     ├── Markdown / Mermaid / PlantUML local renderer
     └── Live Diagram in RAM
 ```
@@ -251,7 +230,7 @@ Build sẽ:
 1. Type-check TypeScript.
 2. Build React SPA bằng Vite.
 3. Copy PlantUML browser assets vào static output.
-4. Bundle Mermaid cùng frontend.
+4. Tạo Mermaid thành lazy-loaded chunks, chỉ tải khi cần render diagram.
 5. Tạo Worker deployment bundle và static assets.
 
 ## Deploy
@@ -361,28 +340,14 @@ flowchart LR
 ```
 ````
 
-## Import Markdown
-
-YONOTE hỗ trợ `.md` và `.markdown`.
-
-Quy tắc tạo title:
-
-1. Dùng heading cấp 1 đầu tiên, ví dụ `# Project Notes`.
-2. Nếu không có heading cấp 1, dùng tên file không có extension.
-3. Nếu vẫn không xác định được title, dùng `Untitled note`.
-
-Trong Cloud Mode, note được lưu vào D1. Trong Private Offline Mode, note chỉ được giữ trong RAM.
-
 ## Share note
 
 Khi chọn Share:
 
-1. YONOTE tạo nội dung Markdown từ title, tags và content.
-2. Nếu browser hỗ trợ chia sẻ file, YONOTE mở native Share Sheet với file `.md`.
-3. Nếu chỉ hỗ trợ chia sẻ text, YONOTE gửi Markdown dạng text.
-4. Nếu Web Share API không khả dụng, YONOTE copy Markdown vào clipboard.
-
-Share không tạo public link và không thay đổi dữ liệu note.
+1. YONOTE lưu các thay đổi đang chờ của note.
+2. Người dùng tạo một public read-only link ngẫu nhiên.
+3. Bất kỳ ai có link có thể đọc phiên bản đã lưu mới nhất.
+4. Người dùng có thể revoke link để vô hiệu hóa quyền truy cập ngay lập tức.
 
 ## Giới hạn mặc định
 
@@ -397,14 +362,14 @@ Share không tạo public link và không thay đổi dữ liệu note.
 
 1. Mở YONOTE online ít nhất một lần để service worker cache application shell.
 2. Chọn **Open private offline mode**.
-3. Tạo note, tags hoặc diagram.
+3. Tạo note hoặc diagram.
 4. Trong DevTools Network, lọc `api`:
    - Không có `/api/unlock`.
    - Không có `/api/notes`.
 5. Bật Offline trong DevTools hoặc chế độ máy bay.
 6. Mermaid và PlantUML vẫn render.
 7. Không có request đến Kroki hoặc PlantUML Server.
-8. Export hoặc Share nội dung cần giữ.
+8. Export nội dung cần giữ.
 9. Chọn Exit hoặc reload: toàn bộ dữ liệu offline phải bị xóa.
 
 ## License

@@ -1,5 +1,18 @@
-import mermaid from 'mermaid';
 import { useEffect, useId, useRef, useState } from 'react';
+
+type MermaidApi = typeof import('mermaid')['default'];
+
+let mermaidPromise: Promise<MermaidApi> | null = null;
+
+function loadMermaid(): Promise<MermaidApi> {
+  mermaidPromise ??= import('mermaid')
+    .then((module) => module.default)
+    .catch((cause) => {
+      mermaidPromise = null;
+      throw cause;
+    });
+  return mermaidPromise;
+}
 
 interface MermaidParseError extends Error {
   str?: string;
@@ -60,18 +73,20 @@ export function MermaidBlock({
     const id = `mermaid-${reactId.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}`;
     const normalizedSource = normalizeMermaidSource(source);
 
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      theme: theme === 'dark' ? 'dark' : 'default',
-    });
-
     setError('');
     setRendering(true);
 
     async function renderDiagram() {
       try {
         if (!normalizedSource) throw new Error('Diagram source is empty.');
+        const mermaid = await loadMermaid();
+        if (!active) return;
+
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: theme === 'dark' ? 'dark' : 'default',
+        });
 
         // Validate first. Calling render() directly can return Mermaid's large
         // built-in "Syntax error in text" SVG instead of a useful UI error.

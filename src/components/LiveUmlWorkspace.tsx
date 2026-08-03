@@ -3,33 +3,9 @@ import type { ThemePreference } from '../lib/types';
 import { MermaidBlock } from './MermaidBlock';
 import { ThemeSelect } from './ThemeSelect';
 import { PlantUmlBlock } from './PlantUmlBlock';
+import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from '../lib/diagramDefaults';
 
 export type DiagramLanguage = 'plantuml' | 'mermaid';
-
-const DEFAULT_PLANTUML_SOURCE = `@startuml
-title Live PlantUML
-
-actor User
-participant "YONOTE PWA" as App
-participant "Local PlantUML" as UML
-
-User -> App: Edit diagram source
-App -> UML: Render in browser
-UML --> App: SVG
-App --> User: Live preview
-
-note over App,UML
-  No API request
-  No D1 write
-  Source stays in memory
-end note
-@enduml`;
-
-const DEFAULT_MERMAID_SOURCE = `flowchart LR
-  User[User] --> Editor[Live Mermaid editor]
-  Editor --> Renderer[Local Mermaid renderer]
-  Renderer --> Preview[Live SVG preview]
-  Editor -. no API request .-> Memory[(Browser RAM)]`;
 
 interface DiagramTemplate {
   label: string;
@@ -243,7 +219,7 @@ export function LiveUmlWorkspace({
 
   const source = language === 'plantuml' ? plantUmlSource : mermaidSource;
   const onSourceChange = language === 'plantuml' ? onPlantUmlSourceChange : onMermaidSourceChange;
-  const defaultSource = language === 'plantuml' ? DEFAULT_PLANTUML_SOURCE : DEFAULT_MERMAID_SOURCE;
+  const defaultSource = language === 'plantuml' ? DEFAULT_LIVE_UML_SOURCE : DEFAULT_LIVE_MERMAID_SOURCE;
   const templates = language === 'plantuml' ? PLANTUML_TEMPLATES : MERMAID_TEMPLATES;
   const name = names[language];
   const languageLabel = language === 'plantuml' ? 'PlantUML' : 'Mermaid';
@@ -264,7 +240,7 @@ export function LiveUmlWorkspace({
 
   useEffect(() => {
     function warnBeforeLeave(event: BeforeUnloadEvent) {
-      const hasChanges = plantUmlSource !== DEFAULT_PLANTUML_SOURCE || mermaidSource !== DEFAULT_MERMAID_SOURCE;
+      const hasChanges = plantUmlSource !== DEFAULT_LIVE_UML_SOURCE || mermaidSource !== DEFAULT_LIVE_MERMAID_SOURCE;
       if (!hasChanges) return;
       event.preventDefault();
       event.returnValue = true;
@@ -531,8 +507,3 @@ export function LiveUmlWorkspace({
   );
 
 }
-
-export {
-  DEFAULT_PLANTUML_SOURCE as DEFAULT_LIVE_UML_SOURCE,
-  DEFAULT_MERMAID_SOURCE as DEFAULT_LIVE_MERMAID_SOURCE,
-};

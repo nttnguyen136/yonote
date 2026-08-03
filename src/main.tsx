@@ -1,7 +1,5 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App';
-import { SharedNotePage } from './components/SharedNotePage';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 import './styles.css';
 import './share.css';
@@ -26,9 +24,16 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 const shareMatch = window.location.pathname.match(/^\/share\/([^/]+)\/?$/);
+const Page = shareMatch
+  ? lazy(() => import('./components/SharedNotePage').then((module) => ({
+      default: () => <module.SharedNotePage shareId={shareMatch[1]} />,
+    })))
+  : lazy(() => import('./App'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {shareMatch ? <SharedNotePage shareId={shareMatch[1]} /> : <App />}
+    <Suspense fallback={<main className="app-shell" aria-label="Loading YONOTE" />}>
+      <Page />
+    </Suspense>
   </StrictMode>,
 );

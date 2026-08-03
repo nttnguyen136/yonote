@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'yonote-shell-v9';
+const CACHE_VERSION = 'yonote-shell-v10';
 const SHELL_URLS = [
   '/',
   '/index.html',
@@ -10,6 +10,40 @@ const SHELL_URLS = [
   '/plantuml/plantuml.js',
   '/plantuml/viz-global.js',
 ];
+
+async function cacheAssetGraph(cache, initialUrls) {
+  const visited = new Set();
+
+  async function cacheUrl(value) {
+    const url = new URL(value, self.location.origin);
+    if (
+      url.origin !== self.location.origin ||
+      url.pathname.startsWith('/api/') ||
+      visited.has(url.href)
+    ) {
+      return;
+    }
+
+    visited.add(url.href);
+    const response = await fetch(url.href, { cache: 'no-store' });
+    if (!response.ok) return;
+
+    await cache.put(url.href, response.clone());
+    if (!url.pathname.endsWith('.js')) return;
+
+    const source = await response.text();
+    const dependencies = [
+      ...source.matchAll(/(?:from\s*|import\s*\()\s*["']([^"']+)["']/g),
+    ]
+      .map((match) => new URL(match[1], url.href))
+      .filter((dependency) => dependency.origin === self.location.origin)
+      .map((dependency) => dependency.href);
+
+    await Promise.allSettled(dependencies.map(cacheUrl));
+  }
+
+  await Promise.allSettled(initialUrls.map(cacheUrl));
+}
 
 async function cacheAppShell() {
   const cache = await caches.open(CACHE_VERSION);
@@ -29,7 +63,9 @@ async function cacheAppShell() {
       .filter((url) => url.origin === self.location.origin && !url.pathname.startsWith('/api/'))
       .map((url) => url.pathname);
 
-    await Promise.allSettled([...new Set(assetUrls)].map((url) => cache.add(url)));
+    // Follow static and dynamic ESM imports so lazy-loaded editor, preview and
+    // diagram chunks remain available when the installed app starts offline.
+    await cacheAssetGraph(cache, [...new Set(assetUrls)]);
   } catch {
     // Core shell files are already cached by cache.addAll.
   }

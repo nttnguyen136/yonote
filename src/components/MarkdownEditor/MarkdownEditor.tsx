@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { Annotation, EditorState } from '@codemirror/state';
 import { EditorView, placeholder as placeholderExtension } from '@codemirror/view';
 import { markdownActions } from './markdownCommands';
@@ -43,7 +42,7 @@ export function MarkdownEditor({
       doc: value,
       extensions: [
         basicSetup,
-        markdown({ codeLanguages: languages }),
+        markdown(),
         EditorView.lineWrapping,
         EditorState.readOnly.of(readOnly),
         EditorView.editable.of(!readOnly),
