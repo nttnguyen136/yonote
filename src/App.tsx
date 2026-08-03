@@ -1,4 +1,15 @@
-import { ChangeEvent, FormEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ChangeEvent,
+  FormEvent,
+  lazy,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -29,6 +40,7 @@ type MobileView = 'notes' | 'editor' | 'preview';
 type AppView = 'notes' | 'uml';
 
 const LAYOUT_STORAGE_KEY = 'yonote-layout-v1';
+const THEME_STORAGE_KEY = 'yonote-theme';
 const DEFAULT_EDITOR_RATIO = 50;
 const MIN_EDITOR_RATIO = 25;
 const MAX_EDITOR_RATIO = 75;
@@ -38,6 +50,17 @@ interface StoredLayout {
   editorRatio: number;
 }
 
+const DEFAULT_LAYOUT: StoredLayout = {
+  sidebarCollapsed: false,
+  editorRatio: DEFAULT_EDITOR_RATIO,
+};
+const DATE_FORMATTER = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -46,7 +69,7 @@ function getInitialLayout(): StoredLayout {
   try {
     const stored = window.localStorage.getItem(LAYOUT_STORAGE_KEY);
     if (!stored) {
-      return { sidebarCollapsed: false, editorRatio: DEFAULT_EDITOR_RATIO };
+      return DEFAULT_LAYOUT;
     }
 
     const parsed = JSON.parse(stored) as Partial<StoredLayout>;
@@ -58,7 +81,7 @@ function getInitialLayout(): StoredLayout {
           : DEFAULT_EDITOR_RATIO,
     };
   } catch {
-    return { sidebarCollapsed: false, editorRatio: DEFAULT_EDITOR_RATIO };
+    return DEFAULT_LAYOUT;
   }
 }
 
@@ -94,12 +117,7 @@ PlantUML and Mermaid are rendered locally without sending diagram source to a se
 `;
 
 function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(timestamp));
+  return DATE_FORMATTER.format(new Date(timestamp));
 }
 
 function saveLabel(state: SaveState): string {
@@ -134,7 +152,7 @@ function createOfflineNote(title = 'Private offline note', content = OFFLINE_STA
 
 function getInitialTheme(): ThemePreference {
   try {
-    const stored = window.localStorage.getItem('yonote-theme');
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     return isThemePreference(stored) ? stored : 'system';
   } catch {
     return 'system';
@@ -160,7 +178,7 @@ function useTheme() {
     document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.style.colorScheme = diagramTheme;
     try {
-      window.localStorage.setItem('yonote-theme', preference);
+      window.localStorage.setItem(THEME_STORAGE_KEY, preference);
     } catch {
       // Appearance still works for the current session when storage is unavailable.
     }
@@ -194,12 +212,12 @@ function useInstallPrompt() {
     };
   }, []);
 
-  async function install() {
+  const install = useCallback(async () => {
     if (!promptEvent) return;
     await promptEvent.prompt();
     await promptEvent.userChoice;
     setPromptEvent(null);
-  }
+  }, [promptEvent]);
 
   return { canInstall: Boolean(promptEvent) && !installed, install };
 }
@@ -313,6 +331,7 @@ function UnlockScreen({
 }
 
 export default function App() {
+  const [initialLayout] = useState(getInitialLayout);
   const [mode, setMode] = useState<WorkspaceMode>('locked');
   const [appView, setAppView] = useState<AppView>('notes');
   const [liveUmlSource, setLiveUmlSource] = useState(DEFAULT_LIVE_UML_SOURCE);
@@ -326,12 +345,8 @@ export default function App() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('notes');
   const [editSignal, setEditSignal] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => getInitialLayout().sidebarCollapsed,
-  );
-  const [editorRatio, setEditorRatio] = useState(
-    () => getInitialLayout().editorRatio,
-  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
+  const [editorRatio, setEditorRatio] = useState(initialLayout.editorRatio);
   const { preference: themePreference, diagramTheme, setPreference: setThemePreference } = useTheme();
   const { canInstall, install } = useInstallPrompt();
 
@@ -343,6 +358,7 @@ export default function App() {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const isOfflineMode = mode === 'offline';
+  const deferredSearch = useDeferredValue(search);
 
   useEffect(() => {
     try {
@@ -576,14 +592,14 @@ export default function App() {
   const selectedNote = notes.find((note) => note.id === selectedId) ?? null;
 
   const filteredNotes = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
+    const query = deferredSearch.trim().toLocaleLowerCase('vi-VN');
     if (!query) return notes;
     return notes.filter(
       (note) =>
-        note.title.toLocaleLowerCase().includes(query) ||
-        note.content.toLocaleLowerCase().includes(query),
+        note.title.toLocaleLowerCase('vi-VN').includes(query) ||
+        note.content.toLocaleLowerCase('vi-VN').includes(query),
     );
-  }, [notes, search]);
+  }, [deferredSearch, notes]);
 
   function editSelected(patch: Partial<Pick<Note, 'title' | 'content' | 'isPinned'>>) {
     if (!selectedId) return;
@@ -671,7 +687,7 @@ export default function App() {
     anchor.href = url;
     anchor.download = `${filename}.md`;
     anchor.click();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   if (mode === 'offline' && appView === 'uml') {
@@ -952,5 +968,4 @@ export default function App() {
       </div>
     </main>
   );
-
 }
