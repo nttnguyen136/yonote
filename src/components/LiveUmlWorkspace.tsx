@@ -217,6 +217,7 @@ export function LiveUmlWorkspace({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('editor');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const actionMenuRef = useRef<HTMLDetailsElement | null>(null);
 
   const source = language === 'plantuml' ? plantUmlSource : mermaidSource;
   const onSourceChange = language === 'plantuml' ? onPlantUmlSourceChange : onMermaidSourceChange;
@@ -264,6 +265,10 @@ export function LiveUmlWorkspace({
     setNames((current) => ({ ...current, [language]: value }));
   }
 
+  function closeActionMenu() {
+    actionMenuRef.current?.removeAttribute('open');
+  }
+
   function changeLanguage(nextLanguage: DiagramLanguage) {
     setLanguage(nextLanguage);
     setMobileView('editor');
@@ -283,6 +288,7 @@ export function LiveUmlWorkspace({
   }
 
   async function copySource() {
+    closeActionMenu();
     try {
       await navigator.clipboard.writeText(source);
       setCopyState('copied');
@@ -367,47 +373,40 @@ export function LiveUmlWorkspace({
         <span><strong>Local rendering</strong> · Source stays in RAM and never reaches an API or D1.</span>
       </div>
 
-      <section className="live-diagram-header">
-        <div>
-          <span className="section-label">Diagram engine</span>
-          <strong>Choose a language</strong>
-        </div>
+      <section className="live-uml-toolbar" aria-label="Diagram controls">
         <nav className="live-diagram-language-tabs" aria-label="Diagram language">
           <button
             type="button"
             className={language === 'plantuml' ? 'active' : ''}
             aria-pressed={language === 'plantuml'}
+            title="PlantUML — architecture and UML diagrams"
             onClick={() => changeLanguage('plantuml')}
           >
             <span>PlantUML</span>
-            <small>Architecture and UML</small>
           </button>
           <button
             type="button"
             className={language === 'mermaid' ? 'active' : ''}
             aria-pressed={language === 'mermaid'}
+            title="Mermaid — flows and lightweight diagrams"
             onClick={() => changeLanguage('mermaid')}
           >
             <span>Mermaid</span>
-            <small>Flows and lightweight diagrams</small>
           </button>
         </nav>
-      </section>
-
-      <section className="live-uml-toolbar">
         <div className="live-uml-fields">
           <label className="live-uml-name">
-            <span>Name</span>
+            <span className="visually-hidden">Name</span>
             <input value={name} maxLength={120} onChange={(event: ChangeEvent<HTMLInputElement>) => setCurrentName(event.target.value)} aria-label="Diagram name" />
           </label>
 
           <label className="live-uml-template">
-            <span>Template</span>
+            <span className="visually-hidden">Template</span>
             <select key={language} defaultValue="" onChange={(event: ChangeEvent<HTMLSelectElement>) => {
               if (!event.target.value) return;
               applyTemplate(event.target.value);
               event.target.value = '';
-            }}>
+            }} aria-label={`${languageLabel} template`}>
               <option value="" disabled>Choose {languageLabel} template…</option>
               {Object.entries(templates).map(([key, template]) => (
                 <option key={key} value={key}>{template.label}</option>
@@ -424,13 +423,6 @@ export function LiveUmlWorkspace({
             accept=".puml,.plantuml,.mmd,.mermaid,.txt,text/plain"
             onChange={importFile}
           />
-          <button className="ghost-button" type="button" onClick={() => fileInputRef.current?.click()}>Import</button>
-          <button className="ghost-button" type="button" onClick={() => void copySource()}>
-            {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy source'}
-          </button>
-          <button className="ghost-button" type="button" onClick={() => downloadBlob(source, 'text/plain;charset=utf-8', `${safeFilename(name)}.${sourceExtension}`)}>
-            Export .{sourceExtension}
-          </button>
           <button
             className="primary-button compact"
             type="button"
@@ -439,7 +431,28 @@ export function LiveUmlWorkspace({
           >
             Export SVG
           </button>
-          <button className="icon-button danger" type="button" onClick={reset}>Reset</button>
+          <details ref={actionMenuRef} className="live-uml-more">
+            <summary className="ghost-button">More</summary>
+            <div className="live-uml-action-menu">
+              <button className="ghost-button" type="button" onClick={() => {
+                closeActionMenu();
+                fileInputRef.current?.click();
+              }}>Import file</button>
+              <button className="ghost-button" type="button" onClick={() => void copySource()}>
+                {copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy source'}
+              </button>
+              <button className="ghost-button" type="button" onClick={() => {
+                closeActionMenu();
+                downloadBlob(source, 'text/plain;charset=utf-8', `${safeFilename(name)}.${sourceExtension}`);
+              }}>
+                Export .{sourceExtension}
+              </button>
+              <button className="ghost-button danger" type="button" onClick={() => {
+                closeActionMenu();
+                reset();
+              }}>Reset source</button>
+            </div>
+          </details>
         </div>
       </section>
 

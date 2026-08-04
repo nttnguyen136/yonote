@@ -536,8 +536,8 @@ a:focus-visible {
   background: var(--bg);
 }
 .topbar {
-  min-height: 64px;
-  flex: 0 0 64px;
+  min-height: 56px;
+  flex: 0 0 56px;
   display: grid;
   grid-template-columns: auto minmax(180px, 1fr) auto;
   align-items: center;
@@ -616,6 +616,7 @@ a:focus-visible {
   grid-template-columns: minmax(270px, 19vw) minmax(340px, 1fr) minmax(340px, 1fr);
 }
 .workspace:focus { outline: 0; }
+.workspace:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .sidebar,
 .editor-panel,
 .preview-panel { min-width: 0; min-height: 0; overflow: hidden; }
@@ -914,54 +915,48 @@ a:focus-visible {
 .diagram-loading.compact { width: 100%; margin: 0 0 8px; padding: 8px 10px; font-size: .76rem; }
 
 /* Live Diagram workspace */
-.live-uml-topbar { flex: 0 0 64px; }
+.live-uml-topbar { flex: 0 0 56px; }
 .live-uml-banner { justify-content: center; }
-.live-diagram-header {
+.live-diagram-language-tabs {
   flex: 0 0 auto;
-  min-height: 84px;
   display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.live-diagram-header > div { min-width: 146px; display: grid; gap: 4px; }
-.live-diagram-header > div > strong { color: var(--text-strong); font-size: .93rem; }
-.live-diagram-language-tabs { display: flex; gap: 8px; }
-.live-diagram-language-tabs button {
-  min-width: 188px;
-  display: grid;
-  gap: 2px;
-  padding: 9px 13px;
+  gap: 3px;
+  padding: 3px;
   border: 1px solid var(--border);
   border-radius: 10px;
+  background: var(--surface);
+}
+.live-diagram-language-tabs button {
+  min-width: 84px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 7px;
   color: var(--muted);
-  background: var(--bg-elevated);
-  text-align: left;
+  background: transparent;
+  text-align: center;
 }
 .live-diagram-language-tabs button span { color: var(--text-strong); font-weight: 750; }
-.live-diagram-language-tabs button small { font-size: .7rem; }
-.live-diagram-language-tabs button:hover { border-color: var(--accent-border); background: var(--surface-raised); }
-.live-diagram-language-tabs button.active { border-color: var(--accent-border); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-border) inset; }
+.live-diagram-language-tabs button:hover { background: var(--surface-raised); }
+.live-diagram-language-tabs button.active { background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-border) inset; }
 .live-diagram-language-tabs button.active span { color: var(--accent); }
 .live-uml-toolbar {
   flex: 0 0 auto;
-  min-height: 70px;
+  min-height: 56px;
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  padding: 10px 14px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
 }
-.live-uml-fields { min-width: 0; display: flex; align-items: flex-end; gap: 10px; }
+.live-uml-fields { min-width: 0; display: flex; align-items: center; gap: 8px; }
 .live-uml-name,
-.live-uml-template { display: grid; gap: 4px; color: var(--muted); font-size: .69rem; font-weight: 750; letter-spacing: .03em; }
-.live-uml-name { width: min(260px, 24vw); }
-.live-uml-template { width: min(250px, 23vw); }
+.live-uml-template { display: block; color: var(--muted); }
+.live-uml-name { width: min(220px, 20vw); }
+.live-uml-template { width: min(220px, 20vw); }
 .live-uml-name input,
-.live-uml-template select { width: 100%; height: 37px; padding: 0 10px; border-radius: 9px; }
+.live-uml-template select { width: 100%; height: 38px; padding: 0 10px; border-radius: 9px; }
 .live-uml-actions {
   min-width: 0;
   margin-left: auto;
@@ -972,6 +967,36 @@ a:focus-visible {
   flex-wrap: wrap;
 }
 .live-uml-actions button { white-space: nowrap; }
+.live-uml-more { position: relative; }
+.live-uml-more summary {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.live-uml-more summary::-webkit-details-marker { display: none; }
+.live-uml-more summary::after { content: '\203A'; margin-left: 7px; transform: rotate(90deg); font-size: 1rem; }
+.live-uml-more[open] summary::after { transform: rotate(-90deg); }
+.live-uml-more summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.live-uml-action-menu {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 172px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-lg);
+}
+.live-uml-action-menu button { width: 100%; min-height: 36px; justify-content: flex-start; text-align: left; box-shadow: none; }
+.live-uml-action-menu .danger { color: var(--danger); }
+.live-uml-action-menu .danger:hover { border-color: var(--danger-border); background: var(--danger-soft); }
 .live-uml-workspace {
   flex: 1;
   min-height: 0;
@@ -1014,8 +1039,8 @@ a:focus-visible {
   will-change: transform;
 }
 .diagram-viewport-content > .diagram { width: 100%; min-height: 100%; margin: 0; display: grid; place-items: center; }
-.diagram-viewport-content .plantuml-diagram > img { max-width: 100%; max-height: calc(100dvh - 310px); pointer-events: none; }
-.diagram-viewport-content > .mermaid-diagram svg { width: auto; max-width: 100%; max-height: calc(100dvh - 310px); pointer-events: none; }
+.diagram-viewport-content .plantuml-diagram > img { max-width: 100%; max-height: calc(100dvh - 220px); pointer-events: none; }
+.diagram-viewport-content > .mermaid-diagram svg { width: auto; max-width: 100%; max-height: calc(100dvh - 220px); pointer-events: none; }
 .diagram-zoom-controls {
   position: absolute;
   z-index: 2;
@@ -1116,9 +1141,8 @@ a:focus-visible {
   .topbar { gap: 10px; padding-inline: 12px; }
   .save-state { min-width: auto; }
   .topbar-actions .quiet { display: none; }
-  .live-uml-toolbar { align-items: stretch; flex-wrap: wrap; }
-  .live-uml-fields { flex: 1 1 500px; }
-  .live-uml-actions { width: 100%; margin-left: 0; justify-content: flex-start; }
+  .live-uml-toolbar { flex-wrap: wrap; }
+  .live-uml-fields { flex: 1 1 390px; }
 }
 
 @media (max-width: 1023px) {
@@ -1170,10 +1194,11 @@ a:focus-visible {
   .unlock-intro > p { margin-inline: auto; }
   .feature-pills { justify-content: center; }
   .unlock-card { margin-bottom: 20px; }
-  .live-diagram-header { align-items: stretch; flex-direction: column; gap: 9px; }
-  .live-diagram-header > div { min-width: 0; }
-  .live-diagram-language-tabs { width: 100%; }
-  .live-diagram-language-tabs button { min-width: 0; flex: 1; }
+  .live-uml-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .live-diagram-language-tabs button { min-width: 76px; }
+  .live-uml-fields { width: auto; }
+  .live-uml-name,
+  .live-uml-template { width: auto; min-width: 0; }
 }
 
 @media (max-width: 767px) {
@@ -1237,20 +1262,28 @@ a:focus-visible {
   .markdown-body { padding: 24px 18px 72px; }
   .preview-heading span { max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
 
-  .live-uml-topbar { flex: 0 0 auto; }
-  .live-diagram-header { min-height: 0; padding: 10px; }
-  .live-diagram-language-tabs button { padding: 8px 10px; }
-  .live-diagram-language-tabs button small { display: none; }
-  .live-uml-toolbar { gap: 9px; padding: 9px 10px; }
-  .live-uml-fields { width: 100%; flex: 1 1 100%; }
-  .live-uml-name,
-  .live-uml-template { width: auto; flex: 1; min-width: 0; }
-  .live-uml-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .live-uml-actions button { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-inline: 7px; font-size: .72rem; }
+  .live-uml-topbar {
+    flex: 0 0 60px;
+    grid-template-columns: auto minmax(116px, 1fr) auto;
+    padding-block: 7px;
+  }
+  .live-uml-topbar .brand-copy { display: none; }
+  .live-uml-topbar .live-uml-mobile-tabs { grid-column: auto; order: initial; width: auto; }
+  .live-uml-topbar .live-uml-mobile-tabs button { min-height: 44px; padding-inline: 8px; }
+  .live-uml-toolbar { gap: 8px; padding: 7px 10px; }
+  .live-diagram-language-tabs { grid-column: 1 / -1; width: 100%; }
+  .live-diagram-language-tabs button { min-width: 0; min-height: 44px; flex: 1; }
+  .live-uml-fields { grid-column: 1 / 3; width: 100%; }
+  .live-uml-fields > label { flex: 1; }
+  .live-uml-name input,
+  .live-uml-template select { height: 44px; }
+  .live-uml-actions { grid-column: 3; }
+  .live-uml-actions button,
+  .live-uml-more summary { min-height: 44px; }
   .live-uml-editor { padding: 16px 14px 64px; font-size: 15px; }
   .diagram-viewport-content { inset: 10px; }
   .diagram-viewport-content .plantuml-diagram > img,
-  .diagram-viewport-content > .mermaid-diagram svg { max-height: calc(100dvh - 360px); }
+  .diagram-viewport-content > .mermaid-diagram svg { max-height: calc(100dvh - 280px); }
   .diagram-zoom-controls { top: 8px; right: 8px; }
   .diagram-viewport-hint { left: 8px; bottom: 8px; }
 }
@@ -1266,10 +1299,12 @@ a:focus-visible {
   .theme-control.compact select { max-width: 66px; }
   .sidebar-heading { grid-template-columns: minmax(0, 1fr) auto; }
   .sidebar-heading .count-badge { display: none; }
-  .live-uml-fields { flex-direction: column; align-items: stretch; }
-  .live-uml-name,
-  .live-uml-template { width: 100%; }
-  .live-uml-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .live-uml-topbar .theme-control { position: relative; width: 44px; padding: 0; justify-content: center; }
+  .live-uml-topbar .theme-control select { position: absolute; width: 44px; height: 44px; opacity: 0; }
+  .live-uml-topbar .topbar-actions { gap: 4px; }
+  .live-uml-topbar .topbar-actions .ghost-button { min-width: 44px; padding-inline: 7px; }
+  .live-uml-fields { flex-direction: row; align-items: center; }
+  .live-uml-template { max-width: 46%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
