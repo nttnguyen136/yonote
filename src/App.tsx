@@ -19,6 +19,7 @@ import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from 
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
 import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
+import { AppIcon } from './components/AppIcon';
 import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from './lib/diagramDefaults';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 
@@ -240,6 +241,7 @@ function UnlockScreen({
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -300,16 +302,31 @@ function UnlockScreen({
           </div>
 
           <label className="field-label" htmlFor="access-key">Access key</label>
-          <input
-            id="access-key"
-            type="password"
-            value={key}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setKey(event.target.value)}
-            autoComplete="current-password"
-            autoFocus
-            maxLength={512}
-            placeholder="Enter access key"
-          />
+          <div className="access-key-field">
+            <AppIcon name="lock" />
+            <input
+              id="access-key"
+              type={showKey ? 'text' : 'password'}
+              value={key}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setKey(event.target.value)}
+              autoComplete="current-password"
+              autoFocus
+              maxLength={512}
+              placeholder="Enter access key"
+              aria-describedby="access-key-help"
+            />
+            <button
+              type="button"
+              className="key-visibility-button"
+              aria-label={showKey ? 'Hide access key' : 'Show access key'}
+              title={showKey ? 'Hide access key' : 'Show access key'}
+              aria-pressed={showKey}
+              onClick={() => setShowKey((visible) => !visible)}
+            >
+              {showKey ? 'Hide' : 'Show'}
+            </button>
+          </div>
+          <p className="field-help" id="access-key-help">Used only to open this session—never saved in the browser.</p>
           {error && <div className="form-error" role="alert">{error}</div>}
           <button className="primary-button unlock-submit" type="submit" disabled={!key || submitting}>
             {submitting ? 'Opening workspace…' : 'Open cloud notes'}
@@ -317,12 +334,12 @@ function UnlockScreen({
 
           <div className="unlock-divider"><span>Private workspace</span></div>
           <button className="offline-workspace-button" type="button" onClick={onOffline}>
-            <span className="offline-workspace-icon" aria-hidden="true">◎</span>
+            <span className="offline-workspace-icon" aria-hidden="true"><AppIcon name="offline" /></span>
             <span>
               <strong>Open Private Offline Mode</strong>
               <small>RAM-only notes and live diagrams. Nothing is sent to D1.</small>
             </span>
-            <span className="offline-workspace-arrow" aria-hidden="true">→</span>
+            <span className="offline-workspace-arrow" aria-hidden="true"><AppIcon name="arrow-right" /></span>
           </button>
         </form>
       </section>
@@ -725,6 +742,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <a className="skip-link" href="#workspace-content">Skip to workspace</a>
       <header className="topbar">
         <div className="brand">
           <span>Y</span>
@@ -741,14 +759,14 @@ export default function App() {
               <button type="button" onClick={() => setAppView('uml')}>Live Diagram</button>
             </nav>
           ) : (
-            <span className="cloud-context"><span aria-hidden="true">●</span> Cloud notes</span>
+            <span className="cloud-context"><AppIcon name="cloud" /> Cloud notes</span>
           )}
         </div>
 
         <nav className="mobile-tabs" aria-label="Note workspace views">
-          <button type="button" className={mobileView === 'notes' ? 'active' : ''} onClick={() => setMobileView('notes')}>Notes</button>
-          <button type="button" className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('editor')}>Edit</button>
-          <button type="button" className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('preview')}>Preview</button>
+          <button type="button" aria-current={mobileView === 'notes' ? 'page' : undefined} className={mobileView === 'notes' ? 'active' : ''} onClick={() => setMobileView('notes')}>Notes</button>
+          <button type="button" aria-current={mobileView === 'editor' ? 'page' : undefined} className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('editor')}>Edit</button>
+          <button type="button" aria-current={mobileView === 'preview' ? 'page' : undefined} className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('preview')}>Preview</button>
         </nav>
 
         <div className="topbar-actions">
@@ -764,13 +782,15 @@ export default function App() {
 
       {isOfflineMode && (
         <div className="offline-banner">
-          <span className="offline-banner-icon" aria-hidden="true">◎</span>
+          <AppIcon name="offline" />
           <span><strong>Private Offline Mode</strong> · Notes and diagrams stay in memory only. Export before leaving.</span>
         </div>
       )}
       {globalError && <div className="global-error" role="alert">{globalError}</div>}
 
       <div
+        id="workspace-content"
+        tabIndex={-1}
         ref={workspaceRef}
         className={`workspace ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
         style={
@@ -789,7 +809,7 @@ export default function App() {
               title="Show notes sidebar"
               onClick={() => setSidebarCollapsed(false)}
             >
-              <span aria-hidden="true">›</span>
+              <AppIcon name="chevron-right" />
             </button>
           </div>
         )}
@@ -802,7 +822,7 @@ export default function App() {
             </div>
             <span className="sidebar-heading-actions">
               <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
-              <button className="primary-button compact" type="button" onClick={() => void addNote()}>New note</button>
+              <button className="primary-button compact button-with-icon" type="button" onClick={() => void addNote()}><AppIcon name="plus" />New note</button>
               <button
                 className="sidebar-collapse-button"
                 type="button"
@@ -810,13 +830,13 @@ export default function App() {
                 title="Hide notes sidebar"
                 onClick={() => setSidebarCollapsed(true)}
               >
-                <span aria-hidden="true">‹</span>
+                <AppIcon name="chevron-left" />
               </button>
             </span>
           </div>
 
           <div className="sidebar-search">
-            <span aria-hidden="true">⌕</span>
+            <AppIcon name="search" />
             <input
               type="search"
               placeholder="Search title or content"
@@ -825,15 +845,15 @@ export default function App() {
               onChange={(event: ChangeEvent<HTMLInputElement>) => setSearch(event.target.value)}
             />
             {search && (
-              <button type="button" aria-label="Clear search" title="Clear search" onClick={() => setSearch('')}>×</button>
+              <button type="button" aria-label="Clear search" title="Clear search" onClick={() => setSearch('')}><AppIcon name="x" /></button>
             )}
           </div>
 
           <div className="note-list">
-            {loading && <div className="empty-state"><span className="empty-state-icon">…</span><strong>Loading notes</strong></div>}
+            {loading && <div className="empty-state" role="status"><span className="loading-spinner" aria-hidden="true" /><strong>Loading notes</strong><p>Preparing your workspace…</p></div>}
             {!loading && filteredNotes.length === 0 && (
               <div className="empty-state">
-                <span className="empty-state-icon" aria-hidden="true">◇</span>
+                <span className="empty-state-icon" aria-hidden="true"><AppIcon name="file" /></span>
                 <strong>{notes.length ? 'No results' : 'No notes yet'}</strong>
                 <p>{notes.length ? 'Try a different search term.' : 'Create your first note to begin.'}</p>
                 {!notes.length && <button className="ghost-button" type="button" onClick={() => void addNote()}>Create note</button>}
@@ -849,7 +869,7 @@ export default function App() {
               >
                 <div className="note-title-row">
                   <strong>{note.title || 'Untitled note'}</strong>
-                  {note.isPinned && <span className="pin-indicator" title="Pinned" aria-label="Pinned">◆</span>}
+                  {note.isPinned && <span className="pin-indicator" title="Pinned" aria-label="Pinned"><AppIcon name="pin" /></span>}
                 </div>
                 <p>{note.content.replace(/[#>*_`\[\]]/g, '').slice(0, 100) || 'Empty note'}</p>
                 <time dateTime={new Date(note.updatedAt).toISOString()}>{formatDate(note.updatedAt)}</time>
@@ -885,14 +905,14 @@ export default function App() {
                           titleInputRef.current?.focus();
                         }}
                       >
-                        ×
+                        <AppIcon name="x" />
                       </button>
                     )}
                   </span>
                 </div>
                 <div className="document-actions" aria-label="Note actions">
-                  <button className="icon-button" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
-                    {selectedNote.isPinned ? 'Unpin' : 'Pin'}
+                  <button className="icon-button button-with-icon" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
+                    <AppIcon name="pin" />{selectedNote.isPinned ? 'Unpin' : 'Pin'}
                   </button>
                   {!isOfflineMode && token && (
                     <ShareButton
@@ -902,8 +922,8 @@ export default function App() {
                       onBeforeOpen={() => flushSave(selectedNote.id)}
                     />
                   )}
-                  <button className="icon-button" type="button" title="Export Markdown" onClick={downloadSelected}>Export</button>
-                  <button className="icon-button danger" type="button" title="Delete note" onClick={() => void removeSelected()}>Delete</button>
+                  <button className="icon-button button-with-icon" type="button" title="Export Markdown" onClick={downloadSelected}><AppIcon name="download" />Export</button>
+                  <button className="icon-button danger button-with-icon" type="button" title="Delete note" onClick={() => void removeSelected()}><AppIcon name="trash" />Delete</button>
                 </div>
               </div>
               <div className="panel-heading editor-heading">
@@ -921,7 +941,7 @@ export default function App() {
             </>
           ) : (
             <div className="empty-workspace">
-              <span className="empty-workspace-icon" aria-hidden="true">✦</span>
+              <span className="empty-workspace-icon" aria-hidden="true"><AppIcon name="sparkles" /></span>
               <h2>No note selected</h2>
               <p>Create a note or choose one from the sidebar.</p>
               <button className="primary-button" type="button" onClick={() => void addNote()}>Create note</button>
@@ -959,7 +979,7 @@ export default function App() {
               </Suspense>
             ) : (
               <div className="empty-workspace">
-                <span className="empty-workspace-icon" aria-hidden="true">◫</span>
+                <span className="empty-workspace-icon" aria-hidden="true"><AppIcon name="file" /></span>
                 <p>Preview will appear here.</p>
               </div>
             )}

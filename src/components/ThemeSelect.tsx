@@ -1,6 +1,7 @@
 import type { ChangeEvent } from 'react';
 import type { ThemePreference } from '../lib/types';
 import { THEME_OPTIONS } from '../lib/theme';
+import { AppIcon } from './AppIcon';
 
 export function ThemeSelect({
   value,
@@ -13,7 +14,7 @@ export function ThemeSelect({
 }) {
   return (
     <label className={`theme-control ${compact ? 'compact' : ''}`} title="Choose appearance">
-      <span className="theme-control-icon" aria-hidden="true">◐</span>
+      <span className="theme-control-icon" aria-hidden="true"><AppIcon name="moon" /></span>
       <span className="visually-hidden">Theme</span>
       <select
         aria-label="Theme"

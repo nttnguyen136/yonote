@@ -22,7 +22,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - Phát hiện conflict khi nhiều tab cùng sửa một note.
 - GitHub Flavored Markdown, Mermaid và PlantUML render ngay trong trình duyệt.
 - Public read-only link cho từng Cloud Note; có thể copy hoặc revoke ngay.
-- Responsive trên desktop, tablet và mobile.
+- Responsive trên desktop, tablet và mobile; điều hướng bằng bàn phím, focus rõ và vùng bấm thân thiện với cảm ứng.
 - Sáu lựa chọn theme: System, Light, Dark, Midnight, Sepia và Forest.
 - Cài đặt như PWA; application shell dùng được sau lần mở online đầu tiên.
 - Live Diagram cho Mermaid và PlantUML trong Private Offline Mode, với preview hỗ trợ zoom và pan.
@@ -44,7 +44,7 @@ Chỉ theme và tùy chọn layout được lưu trên thiết bị; `ACCESS_KEY
 
 ## Chạy local
 
-Yêu cầu: Node.js 20+, npm, tài khoản Cloudflare và một D1 database.
+Yêu cầu: Node.js 22.12+ (khuyến nghị), npm, tài khoản Cloudflare và một D1 database.
 
 ```bash
 npm install
