@@ -25,7 +25,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - Responsive trên desktop, tablet và mobile.
 - Sáu lựa chọn theme: System, Light, Dark, Midnight, Sepia và Forest.
 - Cài đặt như PWA; application shell dùng được sau lần mở online đầu tiên.
-- Live Diagram cho Mermaid và PlantUML trong Private Offline Mode.
+- Live Diagram cho Mermaid và PlantUML trong Private Offline Mode, với preview hỗ trợ zoom và pan.
 
 ## Hai chế độ dữ liệu
 
@@ -179,6 +179,14 @@ Live Diagram trong Private Offline Mode có editor + live preview, template và 
 |---|---|---|---|
 | PlantUML | Sequence, Component, Class, Activity | `.puml`, `.plantuml`, `.txt` | `.puml`, `.svg` |
 | Mermaid | Flowchart, Sequence, Class, State | `.mmd`, `.mermaid`, `.txt` | `.mmd`, `.svg` |
+
+### Điều khiển preview
+
+- Kéo bằng chuột hoặc một ngón tay để di chuyển diagram.
+- Cuộn bằng wheel/touchpad để pan; pinch hoặc `Ctrl/Cmd + wheel` để zoom tại vị trí con trỏ.
+- Dùng các nút `−`, phần trăm và `+` để zoom từ 25% đến 400%; chọn phần trăm hoặc double-click preview để trở về 100% và căn giữa.
+- Khi preview được focus, dùng `+`, `-`, `0` và các phím mũi tên. Giữ `Shift` cùng phím mũi tên để pan nhanh hơn.
+- Mức zoom và vị trí được giữ khi source render lại, nhưng reset khi chuyển giữa PlantUML và Mermaid.
 
 ## PWA và kiểm tra offline
 
