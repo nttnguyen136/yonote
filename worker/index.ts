@@ -452,7 +452,9 @@ function secureAssetResponse(response: Response): Response {
   headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   headers.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    // Vite's React plugin injects this exact hashed preamble during local development.
+    // The hash keeps production inline scripts blocked without requiring 'unsafe-inline'.
+    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-Z2/iFzh9VMlVkEOar1f/oSHWwQk3ve1qk/C2WdsC4Xk='; worker-src 'self' blob:; child-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
   );
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
