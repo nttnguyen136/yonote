@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import type { ThemePreference } from '../lib/types';
+import { DiagramViewport } from './DiagramViewport';
 import { MermaidBlock } from './MermaidBlock';
 import { ThemeSelect } from './ThemeSelect';
 import { PlantUmlBlock } from './PlantUmlBlock';
@@ -466,33 +467,35 @@ export function LiveUmlWorkspace({
           </div>
           <div className="live-uml-preview-canvas">
             {renderSource.trim() ? (
-              language === 'plantuml' ? (
-                <PlantUmlBlock
-                  source={renderSource}
-                  theme={theme}
-                  onRendered={(svg) => {
-                    setRenderedSvg(svg);
-                    setRenderError('');
-                  }}
-                  onError={(message) => {
-                    setRenderedSvg('');
-                    setRenderError(message);
-                  }}
-                />
-              ) : (
-                <MermaidBlock
-                  source={renderSource}
-                  theme={theme}
-                  onRendered={(svg) => {
-                    setRenderedSvg(svg);
-                    setRenderError('');
-                  }}
-                  onError={(message) => {
-                    setRenderedSvg('');
-                    setRenderError(message);
-                  }}
-                />
-              )
+              <DiagramViewport key={language}>
+                {language === 'plantuml' ? (
+                  <PlantUmlBlock
+                    source={renderSource}
+                    theme={theme}
+                    onRendered={(svg) => {
+                      setRenderedSvg(svg);
+                      setRenderError('');
+                    }}
+                    onError={(message) => {
+                      setRenderedSvg('');
+                      setRenderError(message);
+                    }}
+                  />
+                ) : (
+                  <MermaidBlock
+                    source={renderSource}
+                    theme={theme}
+                    onRendered={(svg) => {
+                      setRenderedSvg(svg);
+                      setRenderError('');
+                    }}
+                    onError={(message) => {
+                      setRenderedSvg('');
+                      setRenderError(message);
+                    }}
+                  />
+                )}
+              </DiagramViewport>
             ) : (
               <div className="empty-workspace">
                 <span className="empty-workspace-icon" aria-hidden="true">◇</span>
