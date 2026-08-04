@@ -920,14 +920,79 @@ a:focus-visible {
 .live-uml-preview-canvas {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 18px;
-  display: grid;
-  place-items: stretch;
+  overflow: hidden;
+  padding: 0;
 }
-.live-uml-preview-canvas > .diagram { min-height: calc(100% - 36px); margin: 0; display: grid; place-items: center; }
-.live-uml-preview-canvas .plantuml-diagram > img { max-height: calc(100dvh - 310px); }
-.live-uml-preview-canvas > .mermaid-diagram svg { width: auto; max-width: 100%; max-height: calc(100dvh - 310px); }
+.diagram-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  overflow: hidden;
+  outline: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  background-color: var(--surface);
+  background-image: radial-gradient(circle, var(--border-subtle) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.diagram-viewport:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.diagram-viewport.is-dragging { cursor: grabbing; }
+.diagram-viewport-content {
+  position: absolute;
+  inset: 18px;
+  display: grid;
+  place-items: center;
+  transform-origin: center;
+  will-change: transform;
+}
+.diagram-viewport-content > .diagram { width: 100%; min-height: 100%; margin: 0; display: grid; place-items: center; }
+.diagram-viewport-content .plantuml-diagram > img { max-width: 100%; max-height: calc(100dvh - 310px); pointer-events: none; }
+.diagram-viewport-content > .mermaid-diagram svg { width: auto; max-width: 100%; max-height: calc(100dvh - 310px); pointer-events: none; }
+.diagram-zoom-controls {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  grid-template-columns: 34px minmax(58px, auto) 34px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+.diagram-zoom-controls button {
+  min-width: 0;
+  height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-strong);
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 750;
+}
+.diagram-zoom-controls button:last-child { border-right: 0; }
+.diagram-zoom-controls button:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); }
+.diagram-zoom-controls button:disabled { color: var(--muted-2); cursor: not-allowed; }
+.diagram-zoom-controls .diagram-zoom-value { color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.diagram-viewport-hint {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  padding: 6px 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: var(--muted-2);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  font-size: .68rem;
+  pointer-events: none;
+}
 .preview-status { display: inline-flex; align-items: center; gap: 6px; }
 .preview-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
 .preview-status.error { color: var(--danger); }
@@ -1064,9 +1129,11 @@ a:focus-visible {
   .live-uml-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .live-uml-actions button { width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-inline: 7px; font-size: .72rem; }
   .live-uml-editor { padding: 16px 14px 64px; font-size: 15px; }
-  .live-uml-preview-canvas { padding: 10px; }
-  .live-uml-preview-canvas .plantuml-diagram > img,
-  .live-uml-preview-canvas > .mermaid-diagram svg { max-height: calc(100dvh - 360px); }
+  .diagram-viewport-content { inset: 10px; }
+  .diagram-viewport-content .plantuml-diagram > img,
+  .diagram-viewport-content > .mermaid-diagram svg { max-height: calc(100dvh - 360px); }
+  .diagram-zoom-controls { top: 8px; right: 8px; }
+  .diagram-viewport-hint { left: 8px; bottom: 8px; }
 }
 
 @media (max-width: 430px) {
