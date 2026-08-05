@@ -11,6 +11,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - [Chạy local](#chạy-local)
 - [Build và deploy](#build-và-deploy)
 - [Kiến trúc](#kiến-trúc)
+- [External API](#external-api)
 - [Bảo mật và riêng tư](#bảo-mật-và-riêng-tư)
 - [Diagram](#diagram)
 - [Giới hạn](#giới-hạn)
@@ -22,6 +23,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - Phát hiện conflict khi nhiều tab cùng sửa một note.
 - GitHub Flavored Markdown, Mermaid và PlantUML render ngay trong trình duyệt.
 - Public read-only link cho từng Cloud Note; có thể copy hoặc revoke ngay.
+- External CRUD API v1 dùng API key có scope, revoke, expiration và cursor pagination.
 - Responsive trên desktop, tablet và mobile; điều hướng bằng bàn phím, focus rõ và vùng bấm thân thiện với cảm ứng.
 - Sáu lựa chọn theme: System, Light, Dark, Midnight, Sepia và Forest.
 - Cài đặt như PWA; application shell dùng được sau lần mở online đầu tiên.
@@ -56,6 +58,7 @@ Cập nhật `.dev.vars`:
 ```dotenv
 ACCESS_KEY=your-local-access-key
 TOKEN_SECRET=a-long-random-secret-at-least-32-characters
+API_ALLOWED_ORIGINS=http://localhost:5173
 ```
 
 Khởi động môi trường phát triển:
@@ -89,7 +92,7 @@ Deploy command: npx wrangler deploy
 Root directory: /
 ```
 
-Thêm `ACCESS_KEY` và `TOKEN_SECRET` trong Cloudflare Dashboard dưới dạng Worker Secrets. Không commit secret production vào GitHub.
+Thêm `ACCESS_KEY` và `TOKEN_SECRET` trong Cloudflare Dashboard dưới dạng Worker Secrets. Khi external API được gọi trực tiếp từ browser, cấu hình biến `API_ALLOWED_ORIGINS` bằng danh sách origin chính xác, phân tách bởi dấu phẩy. Không commit secret production vào GitHub.
 
 ### Wrangler
 
@@ -128,6 +131,7 @@ YONOTE PWA
     ├── Session unlock
     ├── Notes CRUD + conflict detection
     ├── Public read-only shares
+    ├── External CRUD API v1 + scoped API keys
     └── Cloudflare D1
 ```
 
@@ -143,6 +147,27 @@ Worker và static assets được deploy thành một đơn vị. D1 binding đ�
 | `GET`, `POST`, `DELETE` | `/api/notes/:id/share` | Đọc, tạo hoặc revoke share link |
 | `GET` | `/api/shares/:shareId` | Đọc public shared note |
 
+## External API
+
+External API nằm dưới namespace `/api/v1` và không dùng session token từ `/api/unlock`. Client phải dùng API key dài hạn dạng `yn_...` qua header `Authorization: Bearer <key>`. Key chỉ được trả plaintext một lần khi tạo; D1 chỉ lưu SHA-256 hash.
+
+API key được quản lý bằng session Cloud Mode:
+
+| Method | Endpoint | Mục đích |
+|---|---|---|
+| `GET`, `POST` | `/api/api-keys` | Liệt kê metadata hoặc tạo API key |
+| `DELETE` | `/api/api-keys/:id` | Revoke API key |
+
+Public CRUD API:
+
+| Method | Endpoint | Scope |
+|---|---|---|
+| `GET`, `POST` | `/api/v1/notes` | `notes:read` / `notes:write` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/notes/:id` | `notes:read` / `notes:write` |
+| `GET` | `/api/v1/health` | Không yêu cầu key |
+
+Danh sách note hỗ trợ `limit`, `cursor`, `pinned`, `q` và `updatedAfter`; response danh sách không trả `content`. Cập nhật note bắt buộc gửi `expectedVersion` để giữ optimistic concurrency. Xem hướng dẫn đầy đủ tại [`docs/external-api.md`](docs/external-api.md) và schema tại [`openapi.yaml`](openapi.yaml).
+
 ## Bảo mật và riêng tư
 
 - `ACCESS_KEY` và `TOKEN_SECRET` là Cloudflare Worker Secrets.
@@ -152,6 +177,8 @@ Worker và static assets được deploy thành một đơn vị. D1 binding đ�
 - PlantUML chạy bằng `@plantuml/core`; diagram source không được gửi đến Worker, Kroki hoặc PlantUML Server.
 - PlantUML chặn include/import đến file hoặc URL bên ngoài; standard-library include dạng `!include <C4/...>` chỉ hoạt động khi có trong bundle.
 - Public share dùng random 192-bit share ID và trả `Cache-Control: no-store`. Bất kỳ ai có URL đều đọc được phiên bản đã lưu mới nhất cho đến khi link bị revoke.
+- External API key dùng random 256-bit secret, chỉ lưu hash, có scope `notes:read`/`notes:write`, expiration và revoke.
+- Browser CORS mặc định bị tắt; chỉ origin có trong `API_ALLOWED_ORIGINS` được phép gửi request external API. Server-to-server client không cần cấu hình CORS.
 - CSP chỉ cho phép WebAssembly cần thiết qua `'wasm-unsafe-eval'`, không bật JavaScript `'unsafe-eval'`.
 - Service worker không cache, replay hoặc background-sync API request.
 

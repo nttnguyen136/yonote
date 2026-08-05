@@ -1,3 +1,5 @@
+import { createApiKey, handleExternalApi, listApiKeys, revokeApiKey } from './external-api';
+
 interface D1Result<T = unknown> {
   success: boolean;
   meta: { changes?: number };
@@ -24,6 +26,7 @@ interface Env {
   ASSETS: AssetsBinding;
   ACCESS_KEY: string;
   TOKEN_SECRET: string;
+  API_ALLOWED_ORIGINS?: string;
 }
 
 interface NoteRow {
@@ -118,6 +121,20 @@ async function ensureSchema(db: D1Database): Promise<void> {
         )
       `).run();
       await db.prepare('CREATE INDEX IF NOT EXISTS idx_note_shares_note_id ON note_shares(note_id)').run();
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS api_keys (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          key_hash TEXT NOT NULL UNIQUE,
+          key_prefix TEXT NOT NULL,
+          scopes TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          last_used_at INTEGER,
+          expires_at INTEGER,
+          revoked_at INTEGER
+        )
+      `).run();
+      await db.prepare('CREATE INDEX IF NOT EXISTS idx_api_keys_status ON api_keys(revoked_at, expires_at)').run();
     })().catch((cause) => {
       schemaReady = undefined;
       throw cause;
@@ -394,6 +411,10 @@ async function deleteNote(env: Env, id: string): Promise<Response> {
 async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
+  if (url.pathname.startsWith('/api/v1/')) {
+    return handleExternalApi(request, env, () => ensureSchema(env.DB));
+  }
+
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: apiHeaders({ Allow: 'GET, POST, PATCH, DELETE, OPTIONS' }) });
   }
@@ -437,6 +458,18 @@ async function handleApi(request: Request, env: Env): Promise<Response> {
     return error('Method not allowed.', 405);
   }
 
+
+  if (url.pathname === '/api/api-keys') {
+    if (request.method === 'GET') return listApiKeys(env);
+    if (request.method === 'POST') return createApiKey(request, env);
+    return error('Method not allowed.', 405);
+  }
+
+  const apiKeyMatch = url.pathname.match(/^\/api\/api-keys\/([^/]+)$/);
+  if (apiKeyMatch) {
+    if (request.method === 'DELETE') return revokeApiKey(env, apiKeyMatch[1]);
+    return error('Method not allowed.', 405);
+  }
 
   if (url.pathname === '/api/health' && request.method === 'GET') {
     return json({ status: 'ok' });

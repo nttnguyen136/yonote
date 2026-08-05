@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: YONOTE External API
+  version: 1.0.0
+  description: Scoped API-key CRUD access to YONOTE Cloud Notes.
+servers:
+  - url: https://notes.example.com
+    description: Replace with the deployed Worker URL.
+tags:
+  - name: Health
+  - name: Notes
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      operationId: getHealth
+      summary: Check API availability
+      security: []
+      responses:
+        '200':
+          description: API is available.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status, version]
+                    properties:
+                      status:
+                        type: string
+                        const: ok
+                      version:
+                        type: string
+                        const: v1
+        '405':
+          $ref: '#/components/responses/MethodNotAllowed'
+  /api/v1/notes:
+    get:
+      tags: [Notes]
+      operationId: listNotes
+      summary: List note metadata
+      description: Requires the `notes:read` scope. Note content is omitted from list responses.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          description: Opaque cursor returned by the previous page.
+          schema:
+            type: string
+        - name: pinned
+          in: query
+          schema:
+            type: boolean
+        - name: q
+          in: query
+          description: Title search text.
+          schema:
+            type: string
+            maxLength: 200
+        - name: updatedAfter
+          in: query
+          description: Unix timestamp in milliseconds.
+          schema:
+            type: integer
+            minimum: 0
+            format: int64
+      responses:
+        '200':
+          description: A page of note metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Notes]
+      operationId: createNote
+      summary: Create a note
+      description: Requires the `notes:write` scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNoteRequest'
+      responses:
+        '201':
+          description: Note created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+  /api/v1/notes/{noteId}:
+    parameters:
+      - $ref: '#/components/parameters/NoteId'
+    get:
+      tags: [Notes]
+      operationId: getNote
+      summary: Get a full note
+      description: Requires the `notes:read` scope.
+      responses:
+        '200':
+          description: Full note.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Notes]
+      operationId: updateNote
+      summary: Update a note
+      description: Requires the `notes:write` scope and optimistic concurrency through `expectedVersion`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNoteRequest'
+      responses:
+        '200':
+          description: Updated note.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The note version has changed.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      error:
+                        type: object
+                        properties:
+                          details:
+                            type: object
+                            properties:
+                              currentVersion:
+                                type: integer
+                                minimum: 1
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+    delete:
+      tags: [Notes]
+      operationId: deleteNote
+      summary: Delete a note
+      description: Requires the `notes:write` scope. Any public share record is removed as well.
+      responses:
+        '204':
+          description: Note deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    ApiKeyBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: YONOTE API key
+      description: API key starting with `yn_`.
+  parameters:
+    NoteId:
+      name: noteId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    NoteMetadata:
+      type: object
+      additionalProperties: false
+      required: [id, title, isPinned, version, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        isPinned:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+    Note:
+      type: object
+      additionalProperties: false
+      required: [id, title, content, isPinned, version, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+          description: Maximum 1,000,000 UTF-8 bytes.
+        isPinned:
+          type: boolean
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+    CreateNoteRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          default: Untitled note
+        content:
+          type: string
+          default: ''
+        isPinned:
+          type: boolean
+          default: false
+    UpdateNoteRequest:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion]
+      minProperties: 2
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+        isPinned:
+          type: boolean
+        expectedVersion:
+          type: integer
+          minimum: 1
+    NoteResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Note'
+    NoteListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NoteMetadata'
+        pagination:
+          type: object
+          additionalProperties: false
+          required: [nextCursor]
+          properties:
+            nextCursor:
+              type: [string, 'null']
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing, invalid, expired or revoked API key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: The API key lacks the required scope or the browser origin is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Note not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    MethodNotAllowed:
+      description: Method not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PayloadTooLarge:
+      description: Note content exceeds the maximum UTF-8 size.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+  - ApiKeyBearer: []
