@@ -1,8 +1,11 @@
 import type { EditorView } from '@codemirror/view';
+import type { KeyBinding } from '@codemirror/view';
+import { redo, undo } from '@codemirror/commands';
 
 export interface MarkdownAction {
   label: string;
   title: string;
+  shortcut?: string;
   run: (view: EditorView) => boolean;
 }
 
@@ -96,33 +99,51 @@ function insertBlock(language: string, source: string): (view: EditorView) => bo
 
 export const markdownActions: MarkdownAction[] = [
   {
+    label: '↶',
+    title: 'Undo',
+    shortcut: 'Mod-z',
+    run: undo,
+  },
+  {
+    label: '↷',
+    title: 'Redo',
+    shortcut: 'Mod-Shift-z',
+    run: redo,
+  },
+  {
     label: 'H1',
     title: 'Heading 1',
+    shortcut: 'Mod-Alt-1',
     run: prefixSelectedLines('# ', 'Heading'),
   },
   {
     label: 'H2',
     title: 'Heading 2',
+    shortcut: 'Mod-Alt-2',
     run: prefixSelectedLines('## ', 'Heading'),
   },
   {
     label: 'B',
     title: 'Bold',
+    shortcut: 'Mod-b',
     run: wrapSelection('**', '**', 'bold text'),
   },
   {
     label: 'I',
     title: 'Italic',
+    shortcut: 'Mod-i',
     run: wrapSelection('*', '*', 'italic text'),
   },
   {
     label: '</>',
     title: 'Inline code',
+    shortcut: 'Mod-`',
     run: wrapSelection('`', '`', 'code'),
   },
   {
     label: 'Link',
     title: 'Insert link',
+    shortcut: 'Mod-k',
     run: (view) => {
       const { from, to } = view.state.selection.main;
       const selected = view.state.sliceDoc(from, to) || 'link text';
@@ -145,7 +166,24 @@ export const markdownActions: MarkdownAction[] = [
   {
     label: 'List',
     title: 'Bullet list',
+    shortcut: 'Mod-Shift-8',
     run: prefixSelectedLines('- ', 'List item'),
+  },
+  {
+    label: '1.',
+    title: 'Numbered list',
+    shortcut: 'Mod-Shift-7',
+    run: prefixSelectedLines('1. ', 'List item'),
+  },
+  {
+    label: 'Block',
+    title: 'Code block',
+    run: insertBlock('', 'code'),
+  },
+  {
+    label: '—',
+    title: 'Horizontal rule',
+    run: (view) => replaceSelection(view, '\n---\n', 5, 5),
   },
   {
     label: 'Task',
@@ -163,3 +201,11 @@ export const markdownActions: MarkdownAction[] = [
     run: insertBlock('plantuml', '@startuml\nA -> B\n@enduml'),
   },
 ];
+
+export const markdownKeymap: KeyBinding[] = markdownActions
+  .filter((action): action is MarkdownAction & { shortcut: string } => Boolean(action.shortcut))
+  .map((action) => ({
+    key: action.shortcut,
+    run: action.run,
+    preventDefault: true,
+  }));

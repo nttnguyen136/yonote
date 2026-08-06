@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { basicSetup } from 'codemirror';
 import { markdown } from '@codemirror/lang-markdown';
-import { Annotation, EditorState } from '@codemirror/state';
-import { EditorView, placeholder as placeholderExtension } from '@codemirror/view';
-import { markdownActions } from './markdownCommands';
+import { Annotation, Compartment, EditorState } from '@codemirror/state';
+import { EditorView, keymap, placeholder as placeholderExtension } from '@codemirror/view';
+import { markdownActions, markdownKeymap } from './markdownCommands';
 import { yonoteEditorTheme } from './markdownTheme';
 import './markdown-editor.css';
 
@@ -29,6 +29,8 @@ export function MarkdownEditor({
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const editableCompartment = useRef(new Compartment()).current;
+  const placeholderCompartment = useRef(new Compartment()).current;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -44,14 +46,17 @@ export function MarkdownEditor({
         basicSetup,
         markdown(),
         EditorView.lineWrapping,
-        EditorState.readOnly.of(readOnly),
-        EditorView.editable.of(!readOnly),
+        editableCompartment.of([
+          EditorState.readOnly.of(readOnly),
+          EditorView.editable.of(!readOnly),
+        ]),
         EditorView.contentAttributes.of({
           'aria-label': 'Markdown content',
           'aria-multiline': 'true',
           spellcheck: 'true',
         }),
-        placeholderExtension(placeholder),
+        placeholderCompartment.of(placeholderExtension(placeholder)),
+        keymap.of(markdownKeymap),
         yonoteEditorTheme,
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
@@ -103,6 +108,23 @@ export function MarkdownEditor({
   }, [value]);
 
   useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({
+      effects: editableCompartment.reconfigure([
+        EditorState.readOnly.of(readOnly),
+        EditorView.editable.of(!readOnly),
+      ]),
+    });
+  }, [editableCompartment, readOnly]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: placeholderCompartment.reconfigure(placeholderExtension(placeholder)) });
+  }, [placeholder, placeholderCompartment]);
+
+  useEffect(() => {
     hostRef.current?.setAttribute('data-editor-theme', theme);
   }, [theme]);
 
@@ -113,8 +135,9 @@ export function MarkdownEditor({
           <button
             key={action.title}
             type="button"
-            title={action.title}
+            title={`${action.title}${action.shortcut ? ` (${action.shortcut.replace('Mod', 'Ctrl/⌘')})` : ''}`}
             aria-label={action.title}
+            aria-keyshortcuts={action.shortcut?.replace('Mod', 'Control')}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               const view = viewRef.current;

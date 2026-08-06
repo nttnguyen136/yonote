@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
@@ -18,7 +18,9 @@ export function DiagramViewport({ children }: { children: ReactNode }) {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, x: 0, y: 0 });
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const pinchRef = useRef<{ distance: number; zoom: number } | null>(null);
@@ -27,6 +29,48 @@ export function DiagramViewport({ children }: { children: ReactNode }) {
     setZoom(1);
     setOffset({ x: 0, y: 0 });
   }
+
+  function fitView() {
+    const viewport = viewportRef.current;
+    const content = contentRef.current;
+    const visual = content?.querySelector<SVGGraphicsElement | HTMLImageElement>('svg, img');
+    if (!viewport || !visual) {
+      resetView();
+      return;
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const visualRect = visual.getBoundingClientRect();
+    const naturalWidth = visual instanceof HTMLImageElement && visual.naturalWidth
+      ? visual.naturalWidth
+      : visualRect.width / zoom;
+    const naturalHeight = visual instanceof HTMLImageElement && visual.naturalHeight
+      ? visual.naturalHeight
+      : visualRect.height / zoom;
+    if (!naturalWidth || !naturalHeight) return;
+
+    const availableWidth = Math.max(1, viewportRect.width - 72);
+    const availableHeight = Math.max(1, viewportRect.height - 88);
+    setZoom(clampZoom(Math.min(availableWidth / naturalWidth, availableHeight / naturalHeight)));
+    setOffset({ x: 0, y: 0 });
+  }
+
+  async function toggleFullscreen() {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    try {
+      if (document.fullscreenElement === viewport) await document.exitFullscreen();
+      else await viewport.requestFullscreen();
+    } catch {
+      // Fullscreen can be denied by browser or embedding policy; the canvas remains usable.
+    }
+  }
+
+  useEffect(() => {
+    const update = () => setIsFullscreen(document.fullscreenElement === viewportRef.current);
+    document.addEventListener('fullscreenchange', update);
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
 
   function setZoomAroundPoint(nextZoom: number, clientX?: number, clientY?: number) {
     const clampedZoom = clampZoom(nextZoom);
@@ -124,6 +168,7 @@ export function DiagramViewport({ children }: { children: ReactNode }) {
     if (event.key === '+' || event.key === '=') setZoomAroundPoint(zoom + ZOOM_STEP);
     else if (event.key === '-') setZoomAroundPoint(zoom - ZOOM_STEP);
     else if (event.key === '0') resetView();
+    else if (event.key.toLowerCase() === 'f') fitView();
     else if (event.key === 'ArrowLeft') setOffset((current) => ({ ...current, x: current.x + panDistance }));
     else if (event.key === 'ArrowRight') setOffset((current) => ({ ...current, x: current.x - panDistance }));
     else if (event.key === 'ArrowUp') setOffset((current) => ({ ...current, y: current.y + panDistance }));
@@ -150,6 +195,7 @@ export function DiagramViewport({ children }: { children: ReactNode }) {
       onKeyDown={handleKeyDown}
     >
       <div
+        ref={contentRef}
         className="diagram-viewport-content"
         style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})` }}
       >
@@ -188,9 +234,28 @@ export function DiagramViewport({ children }: { children: ReactNode }) {
         >
           +
         </button>
+        <span className="diagram-zoom-divider" aria-hidden="true" />
+        <button
+          className="diagram-zoom-action"
+          type="button"
+          aria-label="Fit diagram to viewport"
+          title="Fit to viewport (F)"
+          onClick={fitView}
+        >
+          Fit
+        </button>
+        <button
+          className="diagram-zoom-action"
+          type="button"
+          aria-label={isFullscreen ? 'Exit fullscreen preview' : 'Open fullscreen preview'}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          onClick={() => void toggleFullscreen()}
+        >
+          {isFullscreen ? 'Exit' : 'Full'}
+        </button>
       </div>
 
-      <span className="diagram-viewport-hint">Drag to move · Pinch or Ctrl/⌘ + wheel to zoom</span>
+      <span className="diagram-viewport-hint">Drag to move · Wheel to pan · Pinch or Ctrl/⌘ + wheel to zoom</span>
     </div>
   );
 }

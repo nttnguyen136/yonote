@@ -27,7 +27,8 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - Responsive trên desktop, tablet và mobile; điều hướng bằng bàn phím, focus rõ và vùng bấm thân thiện với cảm ứng.
 - Sáu lựa chọn theme: System, Light, Dark, Midnight, Sepia và Forest.
 - Cài đặt như PWA; application shell dùng được sau lần mở online đầu tiên.
-- Live Diagram cho Mermaid và PlantUML trong Private Offline Mode, với preview hỗ trợ zoom và pan.
+- CodeMirror 6 cho Markdown và diagram source, gồm tìm kiếm, undo/redo, line numbers, fold, bracket matching, phím tắt và toolbar định dạng.
+- Live Diagram cho Mermaid và PlantUML trong Private Offline Mode, với split pane có thể resize và canvas hỗ trợ zoom, pan, fit, fullscreen.
 
 ## Hai chế độ dữ liệu
 
@@ -207,12 +208,15 @@ Live Diagram trong Private Offline Mode có editor + live preview, template và 
 | PlantUML | Sequence, Component, Class, Activity | `.puml`, `.plantuml`, `.txt` | `.puml`, `.svg` |
 | Mermaid | Flowchart, Sequence, Class, State | `.mmd`, `.mermaid`, `.txt` | `.mmd`, `.svg` |
 
+Editor source dùng CodeMirror 6. `Tab`/`Shift + Tab` thụt lề, `Ctrl/Cmd + F` tìm kiếm, và undo/redo dùng phím tắt chuẩn của hệ điều hành. Trên desktop, kéo thanh chia giữa source và preview để đổi kích thước; dùng phím mũi tên khi thanh chia được focus hoặc double-click để reset.
+
 ### Điều khiển preview
 
 - Kéo bằng chuột hoặc một ngón tay để di chuyển diagram.
 - Cuộn bằng wheel/touchpad để pan; pinch hoặc `Ctrl/Cmd + wheel` để zoom tại vị trí con trỏ.
 - Dùng các nút `−`, phần trăm và `+` để zoom từ 25% đến 400%; chọn phần trăm hoặc double-click preview để trở về 100% và căn giữa.
-- Khi preview được focus, dùng `+`, `-`, `0` và các phím mũi tên. Giữ `Shift` cùng phím mũi tên để pan nhanh hơn.
+- Chọn **Fit** để vừa diagram với canvas và **Full** để xem toàn màn hình.
+- Khi preview được focus, dùng `+`, `-`, `0`, `F` và các phím mũi tên. Giữ `Shift` cùng phím mũi tên để pan nhanh hơn.
 - Mức zoom và vị trí được giữ khi source render lại, nhưng reset khi chuyển giữa PlantUML và Mermaid.
 
 ## PWA và kiểm tra offline

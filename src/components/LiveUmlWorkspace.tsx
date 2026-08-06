@@ -1,10 +1,17 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  ChangeEvent,
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { ThemePreference } from '../lib/types';
 import { DiagramViewport } from './DiagramViewport';
 import { MermaidBlock } from './MermaidBlock';
 import { ThemeSelect } from './ThemeSelect';
 import { PlantUmlBlock } from './PlantUmlBlock';
 import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from '../lib/diagramDefaults';
+import { DiagramEditor } from './DiagramEditor/DiagramEditor';
 
 export type DiagramLanguage = 'plantuml' | 'mermaid';
 
@@ -162,6 +169,14 @@ const MERMAID_TEMPLATES: Record<string, DiagramTemplate> = {
 
 type MobileView = 'editor' | 'preview';
 
+const DEFAULT_EDITOR_RATIO = 42;
+const MIN_EDITOR_RATIO = 24;
+const MAX_EDITOR_RATIO = 72;
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
 interface LiveUmlWorkspaceProps {
   plantUmlSource: string;
   onPlantUmlSourceChange: (source: string) => void;
@@ -216,8 +231,10 @@ export function LiveUmlWorkspace({
   const [renderError, setRenderError] = useState('');
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('editor');
+  const [editorRatio, setEditorRatio] = useState(DEFAULT_EDITOR_RATIO);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const actionMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const workspaceRef = useRef<HTMLElement | null>(null);
 
   const source = language === 'plantuml' ? plantUmlSource : mermaidSource;
   const onSourceChange = language === 'plantuml' ? onPlantUmlSourceChange : onMermaidSourceChange;
@@ -338,6 +355,47 @@ export function LiveUmlWorkspace({
     setRenderError('');
   }
 
+  function startPanelResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0 || window.matchMedia('(max-width: 1023px)').matches) return;
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const rect = workspace.getBoundingClientRect();
+
+    function update(clientX: number) {
+      const ratio = ((clientX - rect.left) / rect.width) * 100;
+      setEditorRatio(clamp(ratio, MIN_EDITOR_RATIO, MAX_EDITOR_RATIO));
+    }
+
+    function finish() {
+      document.body.classList.remove('yonote-resizing');
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+    }
+
+    function move(pointerEvent: PointerEvent) {
+      update(pointerEvent.clientX);
+    }
+
+    event.preventDefault();
+    document.body.classList.add('yonote-resizing');
+    update(event.clientX);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  function handlePanelResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    let nextRatio: number | null = null;
+    if (event.key === 'ArrowLeft') nextRatio = editorRatio - 2;
+    if (event.key === 'ArrowRight') nextRatio = editorRatio + 2;
+    if (event.key === 'Home') nextRatio = MIN_EDITOR_RATIO;
+    if (event.key === 'End') nextRatio = MAX_EDITOR_RATIO;
+    if (nextRatio === null) return;
+    event.preventDefault();
+    setEditorRatio(clamp(nextRatio, MIN_EDITOR_RATIO, MAX_EDITOR_RATIO));
+  }
+
   return (
     <main className="live-uml-shell">
       <header className="topbar live-uml-topbar">
@@ -456,21 +514,41 @@ export function LiveUmlWorkspace({
         </div>
       </section>
 
-      <section className="live-uml-workspace">
+      <section
+        ref={workspaceRef}
+        className="live-uml-workspace"
+        style={{ '--live-editor-ratio': editorRatio } as CSSProperties}
+      >
         <div className={`live-uml-editor-panel ${mobileView === 'editor' ? 'mobile-active' : ''}`}>
           <div className="panel-heading live-uml-panel-heading">
             <strong>{languageLabel} source</strong>
             <span>{lines} lines · {characters} characters</span>
           </div>
-          <textarea
-            className="live-uml-editor"
+          <DiagramEditor
+            key={language}
+            language={language}
             value={source}
-            onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onSourceChange(event.target.value)}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-            aria-label={`${languageLabel} source`}
+            onChange={onSourceChange}
+            theme={theme}
           />
+        </div>
+
+        <div
+          className="live-uml-resizer"
+          role="separator"
+          tabIndex={0}
+          aria-label="Resize diagram source and preview"
+          aria-orientation="vertical"
+          aria-valuemin={MIN_EDITOR_RATIO}
+          aria-valuemax={MAX_EDITOR_RATIO}
+          aria-valuenow={Math.round(editorRatio)}
+          aria-valuetext={`Source ${Math.round(editorRatio)}%, preview ${Math.round(100 - editorRatio)}%`}
+          title="Drag to resize. Double-click to reset."
+          onPointerDown={startPanelResize}
+          onKeyDown={handlePanelResizeKeyDown}
+          onDoubleClick={() => setEditorRatio(DEFAULT_EDITOR_RATIO)}
+        >
+          <span aria-hidden="true" />
         </div>
 
         <div className={`live-uml-preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`}>

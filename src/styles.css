@@ -1000,14 +1000,46 @@ a:focus-visible {
 .live-uml-workspace {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+  display: flex;
 }
 .live-uml-editor-panel,
 .live-uml-preview-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.live-uml-editor-panel { border-right: 1px solid var(--border); background: var(--bg); }
+.live-uml-editor-panel {
+  flex: var(--live-editor-ratio, 42) 1 0;
+  min-width: 280px;
+  background: var(--bg);
+}
 .live-uml-preview-panel { background: var(--surface); }
-.live-uml-editor { padding: 20px clamp(16px, 2vw, 28px) 60px; }
+.live-uml-preview-panel { flex: calc(100 - var(--live-editor-ratio, 42)) 1 0; min-width: 320px; }
+.live-uml-resizer {
+  position: relative;
+  z-index: 4;
+  flex: 0 0 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 11px;
+  cursor: col-resize;
+  touch-action: none;
+  border-inline: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+.live-uml-resizer::before { content: ''; position: absolute; inset: 0 -3px; }
+.live-uml-resizer span {
+  width: 3px;
+  height: 42px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: height .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+.live-uml-resizer:hover span,
+.live-uml-resizer:focus-visible span,
+body.yonote-resizing .live-uml-resizer span {
+  height: 64px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.live-uml-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .live-uml-preview-canvas {
   flex: 1;
   min-height: 0;
@@ -1046,8 +1078,7 @@ a:focus-visible {
   z-index: 2;
   top: 12px;
   right: 12px;
-  display: grid;
-  grid-template-columns: 34px minmax(58px, auto) 34px;
+  display: flex;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1070,6 +1101,11 @@ a:focus-visible {
 .diagram-zoom-controls button:hover:not(:disabled) { color: var(--accent); background: var(--accent-soft); }
 .diagram-zoom-controls button:disabled { color: var(--muted-2); cursor: not-allowed; }
 .diagram-zoom-controls .diagram-zoom-value { color: var(--muted); font-size: .72rem; font-variant-numeric: tabular-nums; }
+.diagram-zoom-controls .diagram-zoom-action { min-width: 42px; font-size: .7rem; font-weight: 700; }
+.diagram-zoom-divider { width: 1px; height: 34px; flex: 0 0 1px; background: var(--border); }
+.diagram-viewport:fullscreen { background-color: var(--surface); }
+.diagram-viewport:fullscreen .diagram-viewport-content .plantuml-diagram > img,
+.diagram-viewport:fullscreen .diagram-viewport-content > .mermaid-diagram svg { max-height: calc(100dvh - 48px); }
 .diagram-viewport-hint {
   position: absolute;
   z-index: 2;
@@ -1181,6 +1217,7 @@ a:focus-visible {
   .live-uml-mobile-tabs button { min-height: 30px; padding: 5px 10px; color: var(--muted); font-size: .76rem; }
   .live-uml-mobile-tabs button.active { color: var(--text-strong); background: var(--surface-raised); }
   .live-uml-workspace { display: block; position: relative; }
+  .live-uml-resizer { display: none; }
   .live-uml-editor-panel,
   .live-uml-preview-panel { display: none; width: 100%; height: 100%; border-right: 0; }
   .live-uml-editor-panel.mobile-active,

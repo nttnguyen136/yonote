@@ -1,0 +1,23 @@
+.diagram-editor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.diagram-editor > .cm-editor { height: 100%; }
+
+.diagram-editor .cm-content {
+  padding: 18px clamp(16px, 2vw, 28px) 72px;
+}
+
+.diagram-editor .cm-scroller {
+  -webkit-overflow-scrolling: touch;
+  tab-size: 2;
+}
+
+@media (max-width: 767px) {
+  .diagram-editor .cm-gutters { display: none; }
+  .diagram-editor .cm-content { padding: 16px 14px 72px; }
+}
