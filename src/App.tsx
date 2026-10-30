@@ -25,6 +25,13 @@ import {
   validateMarkdownFile,
 } from './lib/markdownImport';
 import type { LocalMarkdownPreview } from './lib/markdownImport';
+import {
+  createOfflineNote,
+  importMarkdownIntoOfflineNotes,
+  loadOfflineWorkspaceState,
+  saveOfflineWorkspaceState,
+} from './lib/offlineStorage';
+import type { OfflineAppView, OfflineWorkspaceState } from './lib/offlineStorage';
 import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
 import { AppIcon } from './components/AppIcon';
@@ -46,7 +53,7 @@ function WorkspaceLoading({ label }: { label: string }) {
 }
 
 type MobileView = 'notes' | 'editor' | 'preview';
-type AppView = 'notes' | 'uml';
+type AppView = OfflineAppView;
 
 const LAYOUT_STORAGE_KEY = 'yonote-layout-v1';
 const THEME_STORAGE_KEY = 'yonote-theme';
@@ -99,32 +106,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-const OFFLINE_STARTER = `# Private offline note
-
-This workspace is **memory-only**:
-
-- Nothing is loaded from or saved to D1.
-- YONOTE does not call the notes API.
-- Your note disappears when you close, refresh, lock, or leave offline mode.
-- Export the note as Markdown before leaving if you want to keep it.
-
-\`\`\`mermaid
-flowchart LR
-  Browser --> Editor
-  Editor --> Memory
-  Memory -. no network .-> D1
-\`\`\`
-
-\`\`\`plantuml
-@startuml
-Browser -> PlantUML: Render locally
-PlantUML --> Browser: SVG
-@enduml
-\`\`\`
-
-PlantUML and Mermaid are rendered locally without sending diagram source to a server.
-`;
-
 function formatDate(timestamp: number): string {
   return DATE_FORMATTER.format(new Date(timestamp));
 }
@@ -136,7 +117,7 @@ function saveLabel(state: SaveState): string {
     case 'saved':
       return 'Saved';
     case 'offline':
-      return 'Memory only';
+      return 'Saved locally';
     case 'conflict':
       return 'Conflict — reload required';
     case 'error':
@@ -144,19 +125,6 @@ function saveLabel(state: SaveState): string {
     default:
       return 'Ready';
   }
-}
-
-function createOfflineNote(title = 'Private offline note', content = OFFLINE_STARTER): Note {
-  const now = Date.now();
-  return {
-    id: crypto.randomUUID(),
-    title,
-    content,
-    isPinned: false,
-    version: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 function getInitialTheme(): ThemePreference {
@@ -345,7 +313,7 @@ function UnlockScreen({
             <span className="offline-workspace-icon" aria-hidden="true"><AppIcon name="offline" /></span>
             <span>
               <strong>Open Private Offline Mode</strong>
-              <small>RAM-only notes and live diagrams. Nothing is sent to D1.</small>
+              <small>Notes and live diagrams saved in browser storage. Nothing is sent to D1.</small>
             </span>
             <span className="offline-workspace-arrow" aria-hidden="true"><AppIcon name="arrow-right" /></span>
           </button>
@@ -357,22 +325,40 @@ function UnlockScreen({
 
 export default function App() {
   const [initialLayout] = useState(getInitialLayout);
-  const [mode, setMode] = useState<WorkspaceMode>('locked');
-  const [appView, setAppView] = useState<AppView>('notes');
-  const [liveUmlSource, setLiveUmlSource] = useState(DEFAULT_LIVE_UML_SOURCE);
-  const [liveMermaidSource, setLiveMermaidSource] = useState(DEFAULT_LIVE_MERMAID_SOURCE);
+  const [initialOffline] = useState(loadOfflineWorkspaceState);
+  const [mode, setMode] = useState<WorkspaceMode>(() =>
+    initialOffline.isActive ? 'offline' : 'locked',
+  );
+  const [appView, setAppView] = useState<AppView>(() =>
+    initialOffline.isActive ? initialOffline.appView : 'notes',
+  );
+  const [liveUmlSource, setLiveUmlSource] = useState(() => initialOffline.liveUmlSource);
+  const [liveMermaidSource, setLiveMermaidSource] = useState(
+    () => initialOffline.liveMermaidSource,
+  );
   const [token, setToken] = useState<string | null>(null);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Note[]>(() =>
+    initialOffline.isActive ? initialOffline.notes : [],
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    initialOffline.isActive ? initialOffline.selectedId : null,
+  );
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState('');
-  const [saveState, setSaveState] = useState<SaveState>('idle');
-  const [mobileView, setMobileView] = useState<MobileView>('notes');
+  const [saveState, setSaveState] = useState<SaveState>(() =>
+    initialOffline.isActive ? 'offline' : 'idle',
+  );
+  const [mobileView, setMobileView] = useState<MobileView>(() => {
+    if (!initialOffline.isActive || !initialOffline.selectedId) return 'notes';
+    return initialOffline.isViewOnly ? 'preview' : 'editor';
+  });
   const [editSignal, setEditSignal] = useState(0);
   const [localPreview, setLocalPreview] = useState<LocalMarkdownPreview | null>(null);
   const [isLocalPreviewActive, setIsLocalPreviewActive] = useState(false);
-  const [isViewOnly, setIsViewOnly] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(() =>
+    initialOffline.isActive ? initialOffline.isViewOnly : false,
+  );
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [savingLocalPreview, setSavingLocalPreview] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
@@ -420,14 +406,21 @@ export default function App() {
   }, [selectedId]);
 
   useEffect(() => {
-    if (!isOfflineMode) return;
-    function warnBeforeLeave(event: BeforeUnloadEvent) {
-      event.preventDefault();
-      event.returnValue = true;
+    if (mode !== 'offline') return;
+    const saved = saveOfflineWorkspaceState({
+      isActive: true,
+      appView,
+      notes,
+      selectedId,
+      isViewOnly,
+      liveUmlSource,
+      liveMermaidSource,
+    });
+    if (!saved) {
+      setSaveState('error');
+      setGlobalError('Unable to save offline workspace to browser storage.');
     }
-    window.addEventListener('beforeunload', warnBeforeLeave);
-    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
-  }, [isOfflineMode]);
+  }, [appView, isViewOnly, liveMermaidSource, liveUmlSource, mode, notes, selectedId]);
 
   const resetViewAndPreviewState = useCallback(() => {
     setLocalPreview(null);
@@ -436,6 +429,13 @@ export default function App() {
   }, []);
 
   const lock = useCallback(() => {
+    if (modeRef.current === 'offline') {
+      const currentSaved = loadOfflineWorkspaceState();
+      saveOfflineWorkspaceState({
+        ...currentSaved,
+        isActive: false,
+      });
+    }
     modeRef.current = 'locked';
     setMode('locked');
     setAppView('notes');
@@ -624,20 +624,31 @@ export default function App() {
   }
 
   function startOfflineMode() {
-    const note = createOfflineNote();
+    const saved = loadOfflineWorkspaceState();
+    const nextState: OfflineWorkspaceState = {
+      ...saved,
+      isActive: true,
+    };
+    saveOfflineWorkspaceState(nextState);
     modeRef.current = 'offline';
+    notesRef.current = nextState.notes;
+    selectedIdRef.current = nextState.selectedId;
     setMode('offline');
-    setAppView('notes');
-    setLiveUmlSource(DEFAULT_LIVE_UML_SOURCE);
-    setLiveMermaidSource(DEFAULT_LIVE_MERMAID_SOURCE);
+    setAppView(nextState.appView);
+    setLiveUmlSource(nextState.liveUmlSource);
+    setLiveMermaidSource(nextState.liveMermaidSource);
     setToken(null);
-    setNotes([note]);
-    setSelectedId(note.id);
-    resetViewAndPreviewState();
+    setNotes(nextState.notes);
+    setSelectedId(nextState.selectedId);
+    setLocalPreview(null);
+    setIsLocalPreviewActive(false);
+    setIsViewOnly(nextState.isViewOnly);
     setSearch('');
     setGlobalError('');
     setSaveState('offline');
-    setMobileView('editor');
+    setMobileView(
+      nextState.selectedId ? (nextState.isViewOnly ? 'preview' : 'editor') : 'notes',
+    );
     dirtyIdsRef.current.clear();
     inFlightRef.current.clear();
   }
@@ -772,6 +783,25 @@ export default function App() {
       const postcheck = validateMarkdownFile(file, reader.result);
       if (!postcheck.valid) {
         setGlobalError(postcheck.error);
+        return;
+      }
+
+      if (modeRef.current === 'offline') {
+        const imported = importMarkdownIntoOfflineNotes(
+          notesRef.current,
+          file.name,
+          reader.result,
+        );
+        notesRef.current = imported.notes;
+        selectedIdRef.current = imported.selectedId;
+        setNotes(imported.notes);
+        setSelectedId(imported.selectedId);
+        setLocalPreview(null);
+        setIsLocalPreviewActive(false);
+        setIsViewOnly(imported.isViewOnly);
+        setSaveState('offline');
+        setGlobalError('');
+        setMobileView('preview');
         return;
       }
 
@@ -1011,7 +1041,7 @@ export default function App() {
       {isOfflineMode && (
         <div className="offline-banner">
           <AppIcon name="offline" />
-          <span><strong>Private Offline Mode</strong> · Notes and diagrams stay in memory only. Export before leaving.</span>
+          <span><strong>Private Offline Mode</strong> · Notes and diagrams are saved locally in this browser. Nothing is sent to D1.</span>
         </div>
       )}
       {globalError && <div className="global-error" role="alert">{globalError}</div>}
@@ -1058,7 +1088,11 @@ export default function App() {
                 className="ghost-button compact button-with-icon sidebar-import-button"
                 type="button"
                 aria-label="Import Markdown file"
-                title="Import Markdown file (.md, .markdown, .txt) as view-only preview"
+                title={
+                  isOfflineMode
+                    ? 'Import Markdown file (.md, .markdown, .txt) as a view-only offline note'
+                    : 'Import Markdown file (.md, .markdown, .txt) as view-only preview'
+                }
                 onClick={() => fileInputRef.current?.click()}
               >
                 <AppIcon name="upload" />

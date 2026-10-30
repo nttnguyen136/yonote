@@ -19,7 +19,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 ## Tính năng
 
 - Tạo, sửa, xóa, tìm kiếm, ghim và export ghi chú Markdown.
-- Import hoặc kéo-thả file `.md` (`.md`, `.markdown`, `.txt`, tối đa 1 MB UTF-8) vào chế độ xem tạm **View-only** trên RAM (không tự động lưu vào D1), kèm tùy chọn lưu thành Note mới hoặc cập nhật đè vào Note đang chọn.
+- Import hoặc kéo-thả file `.md` (`.md`, `.markdown`, `.txt`, tối đa 1 MB UTF-8): ở Cloud Mode mở bản xem tạm **View-only** trên RAM (kèm tùy chọn lưu thành Note mới hoặc cập nhật đè vào Note đang chọn); ở Private Offline Mode tự động tạo luôn thành một Offline Note mới ở chế độ **View-only** và lưu bền vững trên trình duyệt.
 - Chế độ đọc **View-only** cho phép ẩn khung soạn thảo để xem Preview toàn vùng làm việc và khóa chỉnh sửa nhầm cho đến khi chuyển lại sang `Edit`.
 - Autosave sau 800 ms; hỗ trợ lưu ngay bằng `Ctrl/Cmd + S`.
 - Phát hiện conflict khi nhiều tab cùng sửa một note.
@@ -37,15 +37,15 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 | | Cloud Mode | Private Offline Mode |
 |---|---|---|
 | Mở workspace | Nhập `ACCESS_KEY` | Không cần key |
-| Nơi giữ note | Cloudflare D1 | RAM của tab/app hiện tại |
+| Nơi giữ note | Cloudflare D1 | `localStorage` của trình duyệt trên thiết bị |
 | Notes API | Có | Không |
 | Public share | Có | Không |
 | Live Diagram | Không | Có |
-| Sau refresh/đóng app | Nhập key lại, dữ liệu vẫn ở D1 | Toàn bộ nội dung bị xóa |
+| Sau refresh/đóng app | Nhập key lại, dữ liệu vẫn ở D1 | Tự động khôi phục lại Offline Mode và toàn bộ dữ liệu local |
 
-Private Offline Mode không phải local database. Note và diagram source không được ghi vào `localStorage`, `sessionStorage` hoặc IndexedDB, không được queue để đồng bộ sau, và sẽ mất khi refresh, thoát hoặc khóa app. Hãy export nội dung cần giữ trước khi rời workspace.
+Private Offline Mode lưu trữ toàn bộ note và mã nguồn Live Diagram trực tiếp trong bộ nhớ trình duyệt (`localStorage`) trên thiết bị hiện tại, hoàn toàn không gọi Notes API hay đồng bộ lên D1. Khi nhấn F5 trong Offline Mode, ứng dụng mở lại thẳng vị trí note/diagram đang làm việc; khi bấm `Exit`, ứng dụng quay về màn hình chính nhưng vẫn giữ nguyên dữ liệu cho lần mở Offline Mode tiếp theo.
 
-Chỉ theme và tùy chọn layout được lưu trên thiết bị; `ACCESS_KEY`, session token và nội dung offline không được lưu ở đó.
+`ACCESS_KEY` và session token của Cloud Mode tuyệt đối không được lưu vào browser storage.
 
 ## Chạy local
 
@@ -129,7 +129,7 @@ npx wrangler d1 migrations apply yonote-db --remote
 YONOTE PWA
 ├── React SPA
 │   ├── Cloud Notes workspace
-│   ├── Private Offline workspace (RAM only)
+│   ├── Private Offline workspace (Browser storage only)
 │   └── Markdown / Mermaid / PlantUML local renderer
 └── Cloudflare Worker
     ├── Session unlock
@@ -234,7 +234,7 @@ Editor source dùng CodeMirror 6. `Tab`/`Shift + Tab` thụt lề, `Ctrl/Cmd + F
 2. Mở **Private Offline Mode**, tạo note hoặc diagram.
 3. Trong DevTools Network, xác nhận không có request `/api/unlock` hoặc `/api/notes`.
 4. Bật Offline/chế độ máy bay và xác nhận Mermaid, PlantUML vẫn render mà không gọi server ngoài.
-5. Export nội dung cần giữ; reload hoặc Exit phải xóa toàn bộ dữ liệu offline.
+5. Reload (F5) xác nhận ứng dụng tự động mở lại Offline Mode cùng dữ liệu đã lưu; bấm `Exit` quay về màn hình mở khóa nhưng vẫn giữ nguyên dữ liệu khi mở lại Offline Mode.
 
 ## Giới hạn
 
@@ -242,7 +242,7 @@ Editor source dùng CodeMirror 6. `Tab`/`Shift + Tab` thụt lề, `Ctrl/Cmd + F
 - Một note tối đa khoảng 1 MB UTF-8.
 - PlantUML browser engine và Graphviz assets làm tăng kích thước PWA cache.
 - Một số PlantUML standard library lớn có thể không có trong bundle mặc định.
-- Private Offline Mode không lưu bền dữ liệu.
+- Dữ liệu Private Offline Mode chỉ lưu trong `localStorage` của trình duyệt trên thiết bị hiện tại (không đồng bộ giữa các thiết bị).
 
 ## License
 

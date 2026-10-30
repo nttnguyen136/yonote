@@ -13,7 +13,7 @@ App --> User: Live preview
 note over App,UML
   No API request
   No D1 write
-  Source stays in memory
+  Saved locally in browser
 end note
 @enduml`;
 
@@ -21,4 +21,4 @@ export const DEFAULT_LIVE_MERMAID_SOURCE = `flowchart LR
   User[User] --> Editor[Live Mermaid editor]
   Editor --> Renderer[Local Mermaid renderer]
   Renderer --> Preview[Live SVG preview]
-  Editor -. no API request .-> Memory[(Browser RAM)]`;
+  Editor -. no API request .-> Storage[(Browser Storage)]`;

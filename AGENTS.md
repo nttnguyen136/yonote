@@ -15,8 +15,8 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên quyền riêng 
 2. **Private Offline Mode**
    - Không yêu cầu Access Key.
    - Không gọi Notes API hoặc truy cập D1.
-   - Notes và diagram source chỉ tồn tại trong RAM.
-   - Dữ liệu mất khi refresh, đóng hoặc thoát ứng dụng.
+   - Notes và diagram source được lưu trong `localStorage` của trình duyệt trên thiết bị.
+   - Khi nhấn F5 trong Offline Mode thì tự động mở lại Offline Mode; khi bấm Exit thì quay về UnlockScreen nhưng vẫn giữ nguyên dữ liệu local.
    - Live Diagram chỉ khả dụng trong chế độ này.
 
 Không được làm mờ ranh giới giữa hai workspace.
@@ -97,10 +97,9 @@ scripts/
   - `/api/notes`
   - `/api/shares`
   - D1 hoặc API đồng bộ khác
-- Không persist note hoặc diagram source.
-- Không thêm background sync, request queue hoặc cơ chế khôi phục dữ liệu ngầm.
-- Chỉ theme và tùy chọn layout được phép lưu trên thiết bị.
-- Luôn nhắc người dùng export nội dung trước khi thoát.
+- Lưu trữ notes, trạng thái xem (`selectedId`, `isViewOnly`, `appView`) và mã nguồn Live Diagram trong `localStorage` của trình duyệt (`src/lib/offlineStorage.ts`).
+- Không thêm background sync hoặc request queue lên server/D1.
+- Khi import file Markdown trong Offline Mode, tự động tạo thành một Offline Note mới mở ở chế độ `View-only` và lưu bền vững trên trình duyệt.
 
 ## Diagram
 
@@ -206,11 +205,11 @@ Nếu thay đổi UI hoặc interaction:
 Nếu thay đổi Private Offline Mode:
 
 1. Mở workspace offline.
-2. Tạo hoặc sửa note/diagram.
+2. Tạo, import hoặc sửa note/diagram.
 3. Xác nhận không có request Notes API.
 4. Bật chế độ offline của trình duyệt.
 5. Xác nhận diagram vẫn render.
-6. Refresh hoặc Exit và xác nhận dữ liệu bị xóa.
+6. Refresh (F5) hoặc Exit rồi mở lại Offline Mode và xác nhận dữ liệu vẫn được giữ nguyên.
 
 ## Hoàn tất công việc
 

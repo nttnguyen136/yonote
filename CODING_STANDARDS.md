@@ -16,7 +16,7 @@ Standards enforced during `/code-review` (alongside `AGENTS.md`).
 
 - **Cloud Mode** and **Private Offline Mode** must never share state across transitions (`lock()`, `startOfflineMode()`, `performUnlock()`).
 - Async browser callbacks (`FileReader`, timers, `fetch`/promises) must guard against stale workspace transitions (`modeRef.current`) so callbacks that resolve after `Lock` or `Exit` never repopulate state.
-- Never persist `ACCESS_KEY`, session tokens, note bodies, diagram sources, or temporary local previews to `localStorage`, `sessionStorage`, or `IndexedDB`.
+- Never persist Cloud Mode `ACCESS_KEY`, session tokens, Cloud notes, or Cloud Mode temporary local previews to `localStorage`, `sessionStorage`, or `IndexedDB`. Only Private Offline Mode workspace state (`src/lib/offlineStorage.ts`), theme preference, and layout ratios may be stored in `localStorage`.
 
 ## UI, Themes & Accessibility
 

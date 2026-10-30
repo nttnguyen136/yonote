@@ -257,17 +257,6 @@ export function LiveUmlWorkspace({
     setRenderError('');
   }, [renderSource, theme]);
 
-  useEffect(() => {
-    function warnBeforeLeave(event: BeforeUnloadEvent) {
-      const hasChanges = plantUmlSource !== DEFAULT_LIVE_UML_SOURCE || mermaidSource !== DEFAULT_LIVE_MERMAID_SOURCE;
-      if (!hasChanges) return;
-      event.preventDefault();
-      event.returnValue = true;
-    }
-    window.addEventListener('beforeunload', warnBeforeLeave);
-    return () => window.removeEventListener('beforeunload', warnBeforeLeave);
-  }, [mermaidSource, plantUmlSource]);
-
   const lines = useMemo(() => source.split(/\r?\n/).length, [source]);
   const characters = source.length;
   const previewStatus = renderError
@@ -428,7 +417,7 @@ export function LiveUmlWorkspace({
 
       <div className="offline-banner live-uml-banner">
         <span className="offline-banner-icon" aria-hidden="true">◎</span>
-        <span><strong>Local rendering</strong> · Source stays in RAM and never reaches an API or D1.</span>
+        <span><strong>Local rendering</strong> · Source is saved locally in this browser and never reaches an API or D1.</span>
       </div>
 
       <section className="live-uml-toolbar" aria-label="Diagram controls">
