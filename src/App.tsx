@@ -1105,12 +1105,25 @@ export default function App() {
 
         <aside className={`sidebar ${mobileView === 'notes' ? 'mobile-active' : ''}`}>
           <div className="sidebar-heading">
-            <div>
-              <span className="section-label">Workspace</span>
-              <strong>Notes</strong>
+            <div className="sidebar-heading-title-row">
+              <div className="sidebar-heading-title">
+                <span className="section-label">Workspace</span>
+                <strong>Notes</strong>
+              </div>
+              <div className="sidebar-heading-meta">
+                <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
+                <button
+                  className="sidebar-collapse-button"
+                  type="button"
+                  aria-label="Hide notes sidebar"
+                  title="Hide notes sidebar"
+                  onClick={() => setSidebarCollapsed(true)}
+                >
+                  <AppIcon name="chevron-left" />
+                </button>
+              </div>
             </div>
-            <span className="sidebar-heading-actions">
-              <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
+            <div className="sidebar-heading-actions">
               <button
                 className="ghost-button compact button-with-icon sidebar-import-button"
                 type="button"
@@ -1125,17 +1138,8 @@ export default function App() {
                 <AppIcon name="upload" />
                 <span>Import</span>
               </button>
-              <button className="primary-button compact button-with-icon" type="button" onClick={() => void addNote()}><AppIcon name="plus" />New note</button>
-              <button
-                className="sidebar-collapse-button"
-                type="button"
-                aria-label="Hide notes sidebar"
-                title="Hide notes sidebar"
-                onClick={() => setSidebarCollapsed(true)}
-              >
-                <AppIcon name="chevron-left" />
-              </button>
-            </span>
+              <button className="primary-button compact button-with-icon sidebar-new-button" type="button" onClick={() => void addNote()}><AppIcon name="plus" />New note</button>
+            </div>
           </div>
 
           <div className="sidebar-search">
