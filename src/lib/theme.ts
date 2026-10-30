@@ -1,4 +1,4 @@
-import type { ThemePreference } from './types';
+import type { ThemePreference } from './types.ts';
 
 export type ResolvedTheme = Exclude<ThemePreference, 'system'>;
 export type DiagramTheme = 'light' | 'dark';

@@ -1,3 +1,13 @@
+/*
+ * Section index (for targeted file reads):
+ * - Lines 1–225: Theme tokens (:root, light, midnight, sepia, forest) & base reset
+ * - Lines 226–375: Buttons, icons, focus rings, and theme selector
+ * - Lines 376–540: Unlock screen (.unlock-page, .unlock-card, .offline-workspace-button)
+ * - Lines 541–660: App shell & Topbar (.topbar, .save-state, .cloud-save-controls)
+ * - Lines 661–1080: Workspace sidebar, note list, editor toolbar, preview & share popover
+ * - Lines 1081–1280: Live Diagram workspace (.live-uml-*, .diagram-viewport)
+ * - Lines 1281–1515: Responsive breakpoints (<=1240px, <=1023px, <=820px, <=767px, <=430px)
+ */
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color-scheme: dark;

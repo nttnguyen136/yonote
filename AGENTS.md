@@ -18,7 +18,8 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên quyền riêng 
 - **Cấu trúc thư mục chính**:
   - `src/App.tsx`: Điều phối workspace và layout cấp cao.
   - `src/components/`: UI components (`LiveUmlWorkspace.tsx`, `DiagramViewport.tsx`, `MarkdownEditor/`, `MarkdownPreview.tsx`, `MermaidBlock.tsx`, `PlantUmlBlock.tsx`, `ShareButton.tsx`, `SharedNotePage.tsx`).
-  - `src/lib/`: Domain logic và có unit test đi kèm (`api.ts`, `markdownImport.ts`, `offlineStorage.ts`, `diagramDefaults.ts`, `theme.ts`, `types.ts`).
+  - `src/lib/`: Domain logic (`api.ts`, `autoSave.ts`, `markdownImport.ts`, `offlineStorage.ts`, `diagramDefaults.ts`, `theme.ts`, `types.ts`). Unit test chỉ chạy trên Node (`node --test src/**/*.test.ts` — hiện có `autoSave.test.ts`, `markdownImport.test.ts`, `offlineStorage.test.ts`; không có test component `.tsx`).
+  - `src/styles.css` & `src/resizable-layout.css`: Stylesheet chính (có mục lục dòng ở đầu `src/styles.css`) và desktop flex/resizer layout.
   - `worker/index.ts` & `migrations/`: Cloudflare Worker API handlers và D1 migrations.
 
 ## Lệnh kiểm tra bắt buộc

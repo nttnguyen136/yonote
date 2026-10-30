@@ -31,7 +31,7 @@ Standards enforced during implementation and `/code-review`. See `GLOSSARY.md` f
 ## React, TypeScript & Dependencies
 
 - Keep TypeScript `strict` with no `any`. Use `import type` for type-only imports.
-- In `src/lib/*.ts` modules covered by `node --test`, use explicit `.ts` extensions on relative imports (`allowImportingTsExtensions` is enabled in `tsconfig.app.json`) so both `node --test` and `tsc -b` resolve modules identically.
+- In `src/lib/*.ts` and `src/lib/*.test.ts`, use explicit `.ts` extensions on relative imports (enforced by `tsconfig.test.json` with `moduleResolution: "NodeNext"` during `npm run typecheck`) so both `node --test` and `tsc -b` resolve and type-check modules identically.
 - Compute derived state during render instead of duplicating state; use `useMemo`/`useCallback` only when they provide a concrete benefit.
 - Clean up timers, event listeners, object URLs, and async side effects.
 - Lazy-load heavy workspaces and editors; never make Mermaid or PlantUML an eager dependency of the application shell.

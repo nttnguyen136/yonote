@@ -1,6 +1,6 @@
 // Frontend client for the internal Worker API.
 // See `worker/index.ts` (and `openapi.yaml` for external v1 endpoints) for the full request/response contracts supported by the Worker.
-import type { Note } from './types';
+import type { Note } from './types.ts';
 
 export interface NoteShare {
   shareId: string;
