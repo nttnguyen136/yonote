@@ -1,3 +1,5 @@
+// Frontend client for the internal Worker API.
+// See `worker/index.ts` (and `openapi.yaml` for external v1 endpoints) for the full request/response contracts supported by the Worker.
 import type { Note } from './types';
 
 export interface NoteShare {
@@ -54,10 +56,16 @@ export async function listNotes(token: string): Promise<Note[]> {
   return result.notes;
 }
 
-export async function createNote(token: string): Promise<Note> {
+export async function createNote(
+  token: string,
+  initial: { title?: string; content?: string } = {},
+): Promise<Note> {
   const result = await request<{ note: Note }>('/api/notes', token, {
     method: 'POST',
-    body: JSON.stringify({ title: 'Untitled note', content: '' }),
+    body: JSON.stringify({
+      title: initial.title ?? 'Untitled note',
+      content: initial.content ?? '',
+    }),
   });
   return result.note;
 }

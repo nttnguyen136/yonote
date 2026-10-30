@@ -8,6 +8,7 @@
     "build": "npm run copy:plantuml && tsc -b && vite build",
     "deploy": "npm run build && wrangler deploy --secrets-file .env.production",
     "typecheck": "tsc -b --pretty false",
+    "test": "node --test src/**/*.test.ts",
     "cf-typegen": "wrangler types",
     "copy:plantuml": "node scripts/copy-plantuml-assets.mjs"
   },

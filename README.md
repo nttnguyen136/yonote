@@ -19,6 +19,8 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 ## Tính năng
 
 - Tạo, sửa, xóa, tìm kiếm, ghim và export ghi chú Markdown.
+- Import hoặc kéo-thả file `.md` (`.md`, `.markdown`, `.txt`, tối đa 1 MB UTF-8) vào chế độ xem tạm **View-only** trên RAM (không tự động lưu vào D1), kèm tùy chọn lưu thành Note mới hoặc cập nhật đè vào Note đang chọn.
+- Chế độ đọc **View-only** cho phép ẩn khung soạn thảo để xem Preview toàn vùng làm việc và khóa chỉnh sửa nhầm cho đến khi chuyển lại sang `Edit`.
 - Autosave sau 800 ms; hỗ trợ lưu ngay bằng `Ctrl/Cmd + S`.
 - Phát hiện conflict khi nhiều tab cùng sửa một note.
 - GitHub Flavored Markdown, Mermaid và PlantUML render ngay trong trình duyệt.
@@ -76,6 +78,7 @@ Wrangler lưu D1 local trong thư mục `.wrangler`.
 |---|---|
 | `npm run dev` | Copy PlantUML assets và chạy Vite |
 | `npm run typecheck` | Kiểm tra TypeScript |
+| `npm test` | Chạy unit tests bằng Node test runner |
 | `npm run build` | Type-check, build SPA và Worker bundle |
 | `npm run deploy` | Build và deploy bằng Wrangler |
 | `npm run cf-typegen` | Tạo lại Cloudflare binding types |

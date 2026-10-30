@@ -72,7 +72,7 @@ scripts/
 - Ưu tiên thay đổi nhỏ, có phạm vi rõ ràng và dễ review.
 - Không thực hiện refactor kiến trúc lớn nếu không mang lại lợi ích cụ thể.
 - Không thêm dependency khi chức năng có thể được triển khai hợp lý bằng Web API hoặc thư viện hiện có.
-- Tách component hoặc hook khi một file bắt đầu đảm nhiệm một vùng trách nhiệm độc lập.
+- Tách component hoặc hook khi một file bắt đầu đảm nhiệm một vùng trách nhiệm độc lập (xem thêm `CODING_STANDARDS.md`).
 - Không đưa secrets, token, Access Key hoặc dữ liệu production vào repository.
 - Khi thay đổi tính năng hoặc cách vận hành, cập nhật README tương ứng.
 
@@ -149,7 +149,7 @@ Không đưa logic zoom/pan trực tiếp trở lại `LiveUmlWorkspace.tsx`.
 
 ## Worker và API
 
-Các endpoint chính:
+Các endpoint chính (xem handler chi tiết trong `worker/index.ts` và tài liệu External API trong `openapi.yaml` / `docs/external-api.md` trước khi sửa `src/lib/api.ts`):
 
 ```text
 POST   /api/unlock
@@ -190,6 +190,7 @@ Trước khi hoàn tất thay đổi code, chạy:
 
 ```bash
 npm run typecheck
+npm test
 npm run build
 ```
 
@@ -222,3 +223,17 @@ Khi báo cáo kết quả, nêu rõ:
 - Có thay đổi hành vi, dữ liệu, API hoặc migration hay không.
 
 Không commit, push, tạo PR, merge hoặc deploy nếu người dùng chưa cấp quyền rõ ràng cho từng hành động tương ứng.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues (`nttnguyen136/yonote`) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`GLOSSARY.md` and `docs/adr/` at the repo root). See `docs/agents/domain.md`.

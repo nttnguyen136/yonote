@@ -283,6 +283,7 @@ a:focus-visible {
 .primary-button:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
 .primary-button:active:not(:disabled) { transform: translateY(0); }
 .primary-button.compact { min-height: 34px; padding: 7px 11px; white-space: nowrap; font-size: .84rem; }
+.ghost-button.compact { min-height: 34px; padding: 7px 10px; white-space: nowrap; font-size: .82rem; }
 .ghost-button,
 .icon-button {
   border-color: var(--border);
@@ -609,6 +610,7 @@ a:focus-visible {
 .offline-banner > .app-icon { flex: 0 0 18px; width: 18px; height: 18px; }
 .global-error { text-align: center; }
 
+/* Note: Desktop (>= 901px) flex layout, resizer, and .view-only-mode panel visibility are overridden in src/resizable-layout.css */
 .workspace {
   flex: 1;
   min-height: 0;
@@ -710,6 +712,114 @@ a:focus-visible {
 .pin-indicator { display: grid; color: var(--warning); font-size: .85rem; }
 .note-item p { margin: 7px 0 8px; color: var(--muted); font-size: .8rem; line-height: 1.42; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .note-item time { color: var(--muted-2); font-size: .69rem; }
+.local-preview-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 0;
+  border-color: var(--offline-border);
+  background: var(--offline-soft);
+}
+.local-preview-item::before { background: var(--offline); }
+.local-preview-item.selected {
+  border-color: var(--accent-border);
+  background: var(--surface-selected);
+}
+.local-preview-item.selected::before { background: var(--accent); }
+.local-preview-select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 4px 10px 14px;
+  border: 0;
+  border-radius: 10px 0 0 10px;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+}
+.local-preview-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border: 1px solid var(--offline-border);
+  border-radius: 999px;
+  color: var(--offline);
+  background: color-mix(in srgb, var(--offline) 12%, transparent);
+  font-size: .66rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.local-preview-meta {
+  display: block;
+  overflow: hidden;
+  color: var(--muted-2);
+  font-size: .69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.local-preview-close {
+  width: 28px;
+  height: 28px;
+  margin: 8px 8px 0 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+}
+.local-preview-close:hover {
+  border-color: var(--danger-border);
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+.workspace.is-dragging-file {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--bg) 94%, var(--accent) 6%);
+}
+.view-only-toolbar {
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.local-preview-toolbar {
+  border-bottom-color: var(--offline-border);
+  background: color-mix(in srgb, var(--bg-elevated) 90%, var(--offline) 10%);
+}
+.view-only-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.view-only-title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 1.05rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.view-only-pill {
+  max-width: 240px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-raised);
+  font-size: .72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.document-actions { flex-wrap: wrap; }
 .empty-state {
   min-height: 190px;
   display: flex;
@@ -1336,6 +1446,7 @@ body.yonote-resizing .live-uml-resizer span {
   .theme-control.compact select { max-width: 66px; }
   .sidebar-heading { grid-template-columns: minmax(0, 1fr) auto; }
   .sidebar-heading .count-badge { display: none; }
+  .sidebar-import-button span { display: none; }
   .live-uml-topbar .theme-control { position: relative; width: 44px; padding: 0; justify-content: center; }
   .live-uml-topbar .theme-control select { position: absolute; width: 44px; height: 44px; opacity: 0; }
   .live-uml-topbar .topbar-actions { gap: 4px; }

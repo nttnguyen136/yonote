@@ -12,11 +12,19 @@ import {
 } from 'react';
 import type {
   CSSProperties,
+  DragEvent as ReactDragEvent,
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
 import { ApiError, createNote, deleteNote, listNotes, unlock, updateNote } from './lib/api';
 import type { Note, SaveState, ThemePreference, WorkspaceMode } from './lib/types';
+import {
+  buildOverwriteNotePatch,
+  createLocalMarkdownPreview,
+  formatNoteSnippet,
+  validateMarkdownFile,
+} from './lib/markdownImport';
+import type { LocalMarkdownPreview } from './lib/markdownImport';
 import { ShareButton } from './components/ShareButton';
 import { ThemeSelect } from './components/ThemeSelect';
 import { AppIcon } from './components/AppIcon';
@@ -362,11 +370,17 @@ export default function App() {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [mobileView, setMobileView] = useState<MobileView>('notes');
   const [editSignal, setEditSignal] = useState(0);
+  const [localPreview, setLocalPreview] = useState<LocalMarkdownPreview | null>(null);
+  const [isLocalPreviewActive, setIsLocalPreviewActive] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [savingLocalPreview, setSavingLocalPreview] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(initialLayout.sidebarCollapsed);
   const [editorRatio, setEditorRatio] = useState(initialLayout.editorRatio);
   const { preference: themePreference, diagramTheme, setPreference: setThemePreference } = useTheme();
   const { canInstall, install } = useInstallPrompt();
 
+  const modeRef = useRef<WorkspaceMode>(mode);
   const notesRef = useRef(notes);
   const selectedIdRef = useRef(selectedId);
   const dirtyIdsRef = useRef(new Set<string>());
@@ -374,6 +388,8 @@ export default function App() {
   const timerRef = useRef<number | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragDepthRef = useRef(0);
   const isOfflineMode = mode === 'offline';
   const deferredSearch = useDeferredValue(search);
 
@@ -390,6 +406,10 @@ export default function App() {
       // Layout still works for the current session when storage is unavailable.
     }
   }, [editorRatio, sidebarCollapsed]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
     notesRef.current = notes;
@@ -409,7 +429,14 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', warnBeforeLeave);
   }, [isOfflineMode]);
 
+  const resetViewAndPreviewState = useCallback(() => {
+    setLocalPreview(null);
+    setIsLocalPreviewActive(false);
+    setIsViewOnly(false);
+  }, []);
+
   const lock = useCallback(() => {
+    modeRef.current = 'locked';
     setMode('locked');
     setAppView('notes');
     setLiveUmlSource(DEFAULT_LIVE_UML_SOURCE);
@@ -417,13 +444,17 @@ export default function App() {
     setToken(null);
     setNotes([]);
     setSelectedId(null);
+    resetViewAndPreviewState();
+    setIsDraggingFile(false);
+    setSavingLocalPreview(false);
     setSearch('');
     setGlobalError('');
     setSaveState('idle');
+    dragDepthRef.current = 0;
     dirtyIdsRef.current.clear();
     inFlightRef.current.clear();
     if (timerRef.current) window.clearTimeout(timerRef.current);
-  }, []);
+  }, [resetViewAndPreviewState]);
 
   const handleApiFailure = useCallback(
     (cause: unknown, fallback: string) => {
@@ -570,8 +601,10 @@ export default function App() {
   async function performUnlock(key: string) {
     setAppView('notes');
     const nextToken = await unlock(key);
+    modeRef.current = 'online';
     setToken(nextToken);
     setMode('online');
+    resetViewAndPreviewState();
     setLoading(true);
     setGlobalError('');
     try {
@@ -581,6 +614,7 @@ export default function App() {
       setSaveState(loaded.length ? 'saved' : 'idle');
       setMobileView(loaded.length ? 'editor' : 'notes');
     } catch (cause) {
+      modeRef.current = 'locked';
       setToken(null);
       setMode('locked');
       throw cause;
@@ -591,6 +625,7 @@ export default function App() {
 
   function startOfflineMode() {
     const note = createOfflineNote();
+    modeRef.current = 'offline';
     setMode('offline');
     setAppView('notes');
     setLiveUmlSource(DEFAULT_LIVE_UML_SOURCE);
@@ -598,6 +633,7 @@ export default function App() {
     setToken(null);
     setNotes([note]);
     setSelectedId(note.id);
+    resetViewAndPreviewState();
     setSearch('');
     setGlobalError('');
     setSaveState('offline');
@@ -607,6 +643,8 @@ export default function App() {
   }
 
   const selectedNote = notes.find((note) => note.id === selectedId) ?? null;
+  const activeLocalPreview = isLocalPreviewActive ? localPreview : null;
+  const effectiveViewOnly = Boolean(activeLocalPreview) || isViewOnly;
 
   const filteredNotes = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase('vi-VN');
@@ -619,7 +657,7 @@ export default function App() {
   }, [deferredSearch, notes]);
 
   function editSelected(patch: Partial<Pick<Note, 'title' | 'content' | 'isPinned'>>) {
-    if (!selectedId) return;
+    if (!selectedId || effectiveViewOnly) return;
     const now = Date.now();
     setNotes((current) =>
       current.map((note) => (note.id === selectedId ? { ...note, ...patch, updatedAt: now } : note)),
@@ -639,9 +677,10 @@ export default function App() {
   function selectNote(id: string) {
     if (mode === 'online' && selectedId && dirtyIdsRef.current.has(selectedId)) void flushSave(selectedId);
     setSelectedId(id);
+    setIsLocalPreviewActive(false);
     setSaveState(isOfflineMode ? 'offline' : dirtyIdsRef.current.has(id) ? 'idle' : 'saved');
     setGlobalError('');
-    setMobileView('editor');
+    setMobileView(isViewOnly ? 'preview' : 'editor');
   }
 
   async function addNote() {
@@ -649,6 +688,8 @@ export default function App() {
       const note = createOfflineNote('Untitled offline note', '');
       setNotes((current) => [note, ...current]);
       setSelectedId(note.id);
+      setIsLocalPreviewActive(false);
+      setIsViewOnly(false);
       setSaveState('offline');
       setMobileView('editor');
       return;
@@ -661,6 +702,8 @@ export default function App() {
       const note = await createNote(token);
       setNotes((current) => [note, ...current]);
       setSelectedId(note.id);
+      setIsLocalPreviewActive(false);
+      setIsViewOnly(false);
       setSaveState('saved');
       setMobileView('editor');
     } catch (cause) {
@@ -669,7 +712,7 @@ export default function App() {
   }
 
   async function removeSelected() {
-    if (!selectedNote) return;
+    if (!selectedNote || effectiveViewOnly) return;
     if (!window.confirm(`Delete “${selectedNote.title}”?`)) return;
 
     if (isOfflineMode) {
@@ -695,16 +738,193 @@ export default function App() {
     }
   }
 
-  function downloadSelected() {
-    if (!selectedNote) return;
-    const blob = new Blob([selectedNote.content], { type: 'text/markdown;charset=utf-8' });
+  function downloadMarkdown(title: string, content: string) {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
-    const filename = selectedNote.title.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'note';
+    const filename = title.replace(/[\\/:*?"<>|]+/g, '-').trim() || 'note';
     anchor.href = url;
     anchor.download = `${filename}.md`;
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function downloadSelected() {
+    if (!selectedNote) return;
+    downloadMarkdown(selectedNote.title, selectedNote.content);
+  }
+
+  function downloadLocalPreview() {
+    if (!localPreview) return;
+    downloadMarkdown(localPreview.title, localPreview.content);
+  }
+
+  function importMarkdownFile(file: File) {
+    const precheck = validateMarkdownFile(file);
+    if (!precheck.valid) {
+      setGlobalError(precheck.error);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      if (modeRef.current === 'locked' || typeof reader.result !== 'string') return;
+      const postcheck = validateMarkdownFile(file, reader.result);
+      if (!postcheck.valid) {
+        setGlobalError(postcheck.error);
+        return;
+      }
+
+      if (modeRef.current === 'online' && selectedIdRef.current && dirtyIdsRef.current.has(selectedIdRef.current)) {
+        void flushSave(selectedIdRef.current);
+      }
+
+      const preview = createLocalMarkdownPreview(file.name, reader.result);
+      setLocalPreview(preview);
+      setIsLocalPreviewActive(true);
+      setGlobalError('');
+      setMobileView('preview');
+    });
+    reader.addEventListener('error', () => {
+      if (modeRef.current === 'locked') return;
+      setGlobalError('Unable to read the selected Markdown file.');
+    });
+    reader.readAsText(file);
+  }
+
+  function handleImportInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    importMarkdownFile(file);
+  }
+
+  function hasDraggedFiles(event: ReactDragEvent<HTMLElement>): boolean {
+    return Array.from(event.dataTransfer.types).includes('Files');
+  }
+
+  function handleWorkspaceDragEnter(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDraggingFile(true);
+  }
+
+  function handleWorkspaceDragOver(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }
+
+  function handleWorkspaceDragLeave(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setIsDraggingFile(false);
+    }
+  }
+
+  function handleWorkspaceDrop(event: ReactDragEvent<HTMLDivElement>) {
+    if (!hasDraggedFiles(event)) return;
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDraggingFile(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) importMarkdownFile(file);
+  }
+
+  function closeLocalPreview() {
+    setLocalPreview(null);
+    setIsLocalPreviewActive(false);
+    setMobileView(selectedNote ? (isViewOnly ? 'preview' : 'editor') : 'notes');
+  }
+
+  async function saveLocalPreviewAsNewNote() {
+    if (!localPreview || savingLocalPreview) return;
+
+    if (isOfflineMode) {
+      const note = createOfflineNote(localPreview.title, localPreview.content);
+      setNotes((current) => [note, ...current]);
+      setSelectedId(note.id);
+      resetViewAndPreviewState();
+      setSaveState('offline');
+      setGlobalError('');
+      setMobileView('editor');
+      return;
+    }
+
+    if (!token) return;
+    if (selectedId && dirtyIdsRef.current.has(selectedId)) await flushSave(selectedId);
+
+    setSavingLocalPreview(true);
+    setGlobalError('');
+    setSaveState('saving');
+    try {
+      const saved = await createNote(token, {
+        title: localPreview.title,
+        content: localPreview.content,
+      });
+      if (modeRef.current !== 'online') return;
+      setNotes((current) => [saved, ...current]);
+      setSelectedId(saved.id);
+      resetViewAndPreviewState();
+      setSaveState('saved');
+      setMobileView('editor');
+    } catch (cause) {
+      if (modeRef.current !== 'online') return;
+      setSaveState('error');
+      setGlobalError(handleApiFailure(cause, 'Unable to save imported Markdown as a new note.'));
+    } finally {
+      if (modeRef.current === 'online') {
+        setSavingLocalPreview(false);
+      }
+    }
+  }
+
+  async function overwriteSelectedWithLocalPreview() {
+    if (!localPreview || !selectedNote || savingLocalPreview) return;
+    const targetTitle = selectedNote.title || 'Untitled note';
+    if (!window.confirm(`Overwrite “${targetTitle}” with “${localPreview.fileName}”?`)) return;
+
+    const patch = buildOverwriteNotePatch(selectedNote, localPreview);
+    const now = Date.now();
+    const updatedNote: Note = {
+      ...selectedNote,
+      ...patch,
+      updatedAt: now,
+    };
+
+    setNotes((current) =>
+      current.map((note) => (note.id === selectedNote.id ? updatedNote : note)),
+    );
+    notesRef.current = notesRef.current.map((note) =>
+      note.id === selectedNote.id ? updatedNote : note,
+    );
+    resetViewAndPreviewState();
+    setGlobalError('');
+    setMobileView('editor');
+
+    if (isOfflineMode) {
+      setSaveState('offline');
+      return;
+    }
+
+    dirtyIdsRef.current.add(selectedNote.id);
+    await flushSave(selectedNote.id);
+  }
+
+  function enableViewOnlyMode() {
+    if (mode === 'online' && selectedId && dirtyIdsRef.current.has(selectedId)) {
+      void flushSave(selectedId);
+    }
+    setIsViewOnly(true);
+    setMobileView('preview');
+  }
+
+  function enableEditMode() {
+    setIsViewOnly(false);
+    setMobileView('editor');
   }
 
   if (mode === 'offline' && appView === 'uml') {
@@ -743,6 +963,14 @@ export default function App() {
   return (
     <main className="app-shell">
       <a className="skip-link" href="#workspace-content">Skip to workspace</a>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".md,.markdown,.txt,text/markdown,text/plain"
+        className="visually-hidden"
+        aria-label="Import Markdown file"
+        onChange={handleImportInputChange}
+      />
       <header className="topbar">
         <div className="brand">
           <span>Y</span>
@@ -765,8 +993,8 @@ export default function App() {
 
         <nav className="mobile-tabs" aria-label="Note workspace views">
           <button type="button" aria-current={mobileView === 'notes' ? 'page' : undefined} className={mobileView === 'notes' ? 'active' : ''} onClick={() => setMobileView('notes')}>Notes</button>
-          <button type="button" aria-current={mobileView === 'editor' ? 'page' : undefined} className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('editor')}>Edit</button>
-          <button type="button" aria-current={mobileView === 'preview' ? 'page' : undefined} className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote} onClick={() => setMobileView('preview')}>Preview</button>
+          <button type="button" aria-current={mobileView === 'editor' ? 'page' : undefined} className={mobileView === 'editor' ? 'active' : ''} disabled={!selectedNote || Boolean(activeLocalPreview)} onClick={enableEditMode}>Edit</button>
+          <button type="button" aria-current={mobileView === 'preview' ? 'page' : undefined} className={mobileView === 'preview' ? 'active' : ''} disabled={!selectedNote && !activeLocalPreview} onClick={() => setMobileView('preview')}>Preview</button>
         </nav>
 
         <div className="topbar-actions">
@@ -792,7 +1020,11 @@ export default function App() {
         id="workspace-content"
         tabIndex={-1}
         ref={workspaceRef}
-        className={`workspace ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+        className={`workspace ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${effectiveViewOnly ? 'view-only-mode' : ''} ${isDraggingFile ? 'is-dragging-file' : ''}`}
+        onDragEnter={handleWorkspaceDragEnter}
+        onDragOver={handleWorkspaceDragOver}
+        onDragLeave={handleWorkspaceDragLeave}
+        onDrop={handleWorkspaceDrop}
         style={
           {
             '--editor-grow': editorRatio,
@@ -822,6 +1054,16 @@ export default function App() {
             </div>
             <span className="sidebar-heading-actions">
               <span className="count-badge" aria-label={`${notes.length} notes`}>{notes.length}</span>
+              <button
+                className="ghost-button compact button-with-icon sidebar-import-button"
+                type="button"
+                aria-label="Import Markdown file"
+                title="Import Markdown file (.md, .markdown, .txt) as view-only preview"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <AppIcon name="upload" />
+                <span>Import</span>
+              </button>
               <button className="primary-button compact button-with-icon" type="button" onClick={() => void addNote()}><AppIcon name="plus" />New note</button>
               <button
                 className="sidebar-collapse-button"
@@ -850,8 +1092,41 @@ export default function App() {
           </div>
 
           <div className="note-list">
+            {localPreview && (
+              <div
+                className={`note-item local-preview-item ${isLocalPreviewActive ? 'selected' : ''}`}
+                role="group"
+                aria-label={`Local preview: ${localPreview.title}`}
+              >
+                <button
+                  type="button"
+                  className="local-preview-select"
+                  aria-current={isLocalPreviewActive ? 'page' : undefined}
+                  onClick={() => {
+                    setIsLocalPreviewActive(true);
+                    setMobileView('preview');
+                  }}
+                >
+                  <div className="note-title-row">
+                    <strong>{localPreview.title}</strong>
+                    <span className="local-preview-badge">Local · View only</span>
+                  </div>
+                  <p>{formatNoteSnippet(localPreview.content, 'Empty Markdown file')}</p>
+                  <span className="local-preview-meta">{localPreview.fileName} · Not saved to DB</span>
+                </button>
+                <button
+                  type="button"
+                  className="local-preview-close"
+                  aria-label="Close local preview"
+                  title="Close local preview"
+                  onClick={closeLocalPreview}
+                >
+                  <AppIcon name="x" />
+                </button>
+              </div>
+            )}
             {loading && <div className="empty-state" role="status"><span className="loading-spinner" aria-hidden="true" /><strong>Loading notes</strong><p>Preparing your workspace…</p></div>}
-            {!loading && filteredNotes.length === 0 && (
+            {!loading && filteredNotes.length === 0 && !localPreview && (
               <div className="empty-state">
                 <span className="empty-state-icon" aria-hidden="true"><AppIcon name="file" /></span>
                 <strong>{notes.length ? 'No results' : 'No notes yet'}</strong>
@@ -859,26 +1134,29 @@ export default function App() {
                 {!notes.length && <button className="ghost-button" type="button" onClick={() => void addNote()}>Create note</button>}
               </div>
             )}
-            {filteredNotes.map((note) => (
-              <button
-                key={note.id}
-                type="button"
-                className={`note-item ${note.id === selectedId ? 'selected' : ''}`}
-                aria-current={note.id === selectedId ? 'page' : undefined}
-                onClick={() => selectNote(note.id)}
-              >
-                <div className="note-title-row">
-                  <strong>{note.title || 'Untitled note'}</strong>
-                  {note.isPinned && <span className="pin-indicator" title="Pinned" aria-label="Pinned"><AppIcon name="pin" /></span>}
-                </div>
-                <p>{note.content.replace(/[#>*_`\[\]]/g, '').slice(0, 100) || 'Empty note'}</p>
-                <time dateTime={new Date(note.updatedAt).toISOString()}>{formatDate(note.updatedAt)}</time>
-              </button>
-            ))}
+            {filteredNotes.map((note) => {
+              const isSelected = !isLocalPreviewActive && note.id === selectedId;
+              return (
+                <button
+                  key={note.id}
+                  type="button"
+                  className={`note-item ${isSelected ? 'selected' : ''}`}
+                  aria-current={isSelected ? 'page' : undefined}
+                  onClick={() => selectNote(note.id)}
+                >
+                  <div className="note-title-row">
+                    <strong>{note.title || 'Untitled note'}</strong>
+                    {note.isPinned && <span className="pin-indicator" title="Pinned" aria-label="Pinned"><AppIcon name="pin" /></span>}
+                  </div>
+                  <p>{formatNoteSnippet(note.content, 'Empty note')}</p>
+                  <time dateTime={new Date(note.updatedAt).toISOString()}>{formatDate(note.updatedAt)}</time>
+                </button>
+              );
+            })}
           </div>
         </aside>
 
-        <section className={`editor-panel ${mobileView === 'editor' ? 'mobile-active' : ''}`} aria-label="Markdown editor">
+        <section className={`editor-panel ${mobileView === 'editor' && !effectiveViewOnly ? 'mobile-active' : ''}`} aria-label="Markdown editor">
           {selectedNote ? (
             <>
               <div className="document-toolbar">
@@ -893,8 +1171,9 @@ export default function App() {
                       onChange={(event: ChangeEvent<HTMLInputElement>) => editSelected({ title: event.target.value })}
                       aria-label="Note title"
                       maxLength={200}
+                      readOnly={effectiveViewOnly}
                     />
-                    {selectedNote.title && (
+                    {selectedNote.title && !effectiveViewOnly && (
                       <button
                         className="title-clear-button"
                         type="button"
@@ -911,6 +1190,15 @@ export default function App() {
                   </span>
                 </div>
                 <div className="document-actions" aria-label="Note actions">
+                  <button
+                    className="icon-button button-with-icon"
+                    type="button"
+                    aria-pressed={isViewOnly}
+                    title="Switch to view-only preview mode"
+                    onClick={enableViewOnlyMode}
+                  >
+                    <AppIcon name="eye" />View only
+                  </button>
                   <button className="icon-button button-with-icon" type="button" title={selectedNote.isPinned ? 'Unpin note' : 'Pin note'} onClick={() => editSelected({ isPinned: !selectedNote.isPinned })}>
                     <AppIcon name="pin" />{selectedNote.isPinned ? 'Unpin' : 'Pin'}
                   </button>
@@ -935,6 +1223,7 @@ export default function App() {
                   value={selectedNote.content}
                   onChange={(content) => editSelected({ content })}
                   theme={diagramTheme}
+                  readOnly={effectiveViewOnly}
                   placeholder={'# Start writing\n\n```mermaid\nflowchart LR\n  A --> B\n```'}
                 />
               </Suspense>
@@ -967,13 +1256,124 @@ export default function App() {
           <span aria-hidden="true" />
         </div>
 
-        <section className={`preview-panel ${mobileView === 'preview' ? 'mobile-active' : ''}`} aria-label="Markdown preview">
+        <section className={`preview-panel ${mobileView === 'preview' || (effectiveViewOnly && mobileView !== 'notes') ? 'mobile-active' : ''}`} aria-label="Markdown preview">
+          {activeLocalPreview ? (
+            <div className="document-toolbar view-only-toolbar local-preview-toolbar">
+              <div className="document-title-field">
+                <span className="section-label">Local Markdown preview · View only (not saved to DB)</span>
+                <div className="view-only-title-row">
+                  <strong className="view-only-title">{activeLocalPreview.title}</strong>
+                  <span className="view-only-pill" title={activeLocalPreview.fileName}>
+                    <AppIcon name="file" /> {activeLocalPreview.fileName}
+                  </span>
+                </div>
+              </div>
+              <div className="document-actions" aria-label="Local preview actions">
+                <button
+                  className="primary-button compact button-with-icon"
+                  type="button"
+                  disabled={savingLocalPreview}
+                  title={
+                    isOfflineMode
+                      ? 'Add this file as an offline note in memory and open editor'
+                      : 'Save this file as a new note in D1 and open editor'
+                  }
+                  onClick={() => void saveLocalPreviewAsNewNote()}
+                >
+                  <AppIcon name="edit" />
+                  {savingLocalPreview
+                    ? 'Saving…'
+                    : isOfflineMode
+                      ? 'Add as offline note & Edit'
+                      : 'Save as new note & Edit'}
+                </button>
+                {selectedNote && (
+                  <button
+                    className="icon-button button-with-icon"
+                    type="button"
+                    disabled={savingLocalPreview}
+                    title={`Overwrite “${selectedNote.title || 'Untitled note'}” with “${activeLocalPreview.fileName}”`}
+                    onClick={() => void overwriteSelectedWithLocalPreview()}
+                  >
+                    <AppIcon name="upload" />Overwrite selected note
+                  </button>
+                )}
+                <button
+                  className="icon-button button-with-icon"
+                  type="button"
+                  title="Export Markdown"
+                  onClick={downloadLocalPreview}
+                >
+                  <AppIcon name="download" />Export
+                </button>
+                <button
+                  className="icon-button danger button-with-icon"
+                  type="button"
+                  title="Close local preview without saving"
+                  onClick={closeLocalPreview}
+                >
+                  <AppIcon name="x" />Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            isViewOnly &&
+            selectedNote && (
+              <div className="document-toolbar view-only-toolbar">
+                <div className="document-title-field">
+                  <span className="section-label">Note title · View only</span>
+                  <div className="view-only-title-row">
+                    <strong className="view-only-title">{selectedNote.title || 'Untitled note'}</strong>
+                    <span className="view-only-pill">
+                      <AppIcon name="eye" /> View only
+                    </span>
+                  </div>
+                </div>
+                <div className="document-actions" aria-label="View-only note actions">
+                  <button
+                    className="primary-button compact button-with-icon"
+                    type="button"
+                    title="Switch to edit mode"
+                    onClick={enableEditMode}
+                  >
+                    <AppIcon name="edit" />Edit
+                  </button>
+                  {!isOfflineMode && token && (
+                    <ShareButton
+                      key={selectedNote.id}
+                      token={token}
+                      note={selectedNote}
+                      onBeforeOpen={() => flushSave(selectedNote.id)}
+                    />
+                  )}
+                  <button
+                    className="icon-button button-with-icon"
+                    type="button"
+                    title="Export Markdown"
+                    onClick={downloadSelected}
+                  >
+                    <AppIcon name="download" />Export
+                  </button>
+                </div>
+              </div>
+            )
+          )}
           <div className="panel-heading preview-heading">
-            <strong>Preview</strong>
-            <span>Markdown · Mermaid · PlantUML</span>
+            <strong>{effectiveViewOnly ? 'View-only Preview' : 'Preview'}</strong>
+            <span>
+              {activeLocalPreview
+                ? 'Memory only · Not saved to D1'
+                : isViewOnly
+                  ? 'Editing locked · Switch to Edit to modify'
+                  : 'Markdown · Mermaid · PlantUML'}
+            </span>
           </div>
           <div className="preview-scroll">
-            {selectedNote ? (
+            {activeLocalPreview ? (
+              <Suspense fallback={<WorkspaceLoading label="Loading preview…" />}>
+                <MarkdownPreview content={activeLocalPreview.content} theme={diagramTheme} />
+              </Suspense>
+            ) : selectedNote ? (
               <Suspense fallback={<WorkspaceLoading label="Loading preview…" />}>
                 <MarkdownPreview content={selectedNote.content} theme={diagramTheme} />
               </Suspense>

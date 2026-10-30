@@ -106,6 +106,17 @@ body.yonote-resizing * {
     min-width: 280px;
   }
 
+  .workspace.view-only-mode > .editor-panel,
+  .workspace.view-only-mode > .workspace-resizer {
+    display: none !important;
+  }
+
+  .workspace.view-only-mode > .preview-panel {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .workspace-resizer {
     position: relative;
     z-index: 4;
