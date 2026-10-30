@@ -21,7 +21,7 @@ YONOTE là ứng dụng ghi chú Markdown single-user, ưu tiên riêng tư, ch�
 - Tạo, sửa, xóa, tìm kiếm, ghim và export ghi chú Markdown.
 - Import hoặc kéo-thả file `.md` (`.md`, `.markdown`, `.txt`, tối đa 1 MB UTF-8): ở Cloud Mode mở bản xem tạm **View-only** trên RAM (kèm tùy chọn lưu thành Note mới hoặc cập nhật đè vào Note đang chọn); ở Private Offline Mode tự động tạo luôn thành một Offline Note mới ở chế độ **View-only** và lưu bền vững trên trình duyệt.
 - Chế độ đọc **View-only** cho phép ẩn khung soạn thảo để xem Preview toàn vùng làm việc và khóa chỉnh sửa nhầm cho đến khi chuyển lại sang `Edit`.
-- Autosave sau 800 ms; hỗ trợ lưu ngay bằng `Ctrl/Cmd + S`.
+- Ở Cloud Mode, có nút bật/tắt **Auto-save** trên Topbar (mặc định tắt, lưu tùy chọn trong `localStorage`; khi bật sẽ tự động lưu sau 800 ms), kết hợp nút **Save** thủ công và phím tắt `Ctrl/Cmd + S`.
 - Phát hiện conflict khi nhiều tab cùng sửa một note.
 - GitHub Flavored Markdown, Mermaid và PlantUML render ngay trong trình duyệt.
 - Public read-only link cho từng Cloud Note; có thể copy hoặc revoke ngay.

@@ -33,8 +33,15 @@ import {
 } from './lib/offlineStorage';
 import type { OfflineAppView, OfflineWorkspaceState } from './lib/offlineStorage';
 import { ShareButton } from './components/ShareButton';
+import { SaveControls, useAutoSave } from './components/SaveControls';
 import { ThemeSelect } from './components/ThemeSelect';
 import { AppIcon } from './components/AppIcon';
+import {
+  canManualSaveNote,
+  resolveNoteSaveState,
+  shouldAutoFlushOnTransition,
+  shouldScheduleAutoSave,
+} from './lib/autoSave';
 import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from './lib/diagramDefaults';
 import { getDiagramTheme, getThemeColor, isThemePreference, resolveTheme } from './lib/theme';
 
@@ -108,23 +115,6 @@ interface BeforeInstallPromptEvent extends Event {
 
 function formatDate(timestamp: number): string {
   return DATE_FORMATTER.format(new Date(timestamp));
-}
-
-function saveLabel(state: SaveState): string {
-  switch (state) {
-    case 'saving':
-      return 'Saving…';
-    case 'saved':
-      return 'Saved';
-    case 'offline':
-      return 'Saved locally';
-    case 'conflict':
-      return 'Conflict — reload required';
-    case 'error':
-      return 'Save failed';
-    default:
-      return 'Ready';
-  }
 }
 
 function getInitialTheme(): ThemePreference {
@@ -372,6 +362,13 @@ export default function App() {
   const dirtyIdsRef = useRef(new Set<string>());
   const inFlightRef = useRef(new Set<string>());
   const timerRef = useRef<number | null>(null);
+  const clearSaveTimer = useCallback(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+  const { autoSave, autoSaveRef, toggleAutoSave } = useAutoSave(clearSaveTimer);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -453,8 +450,8 @@ export default function App() {
     dragDepthRef.current = 0;
     dirtyIdsRef.current.clear();
     inFlightRef.current.clear();
-    if (timerRef.current) window.clearTimeout(timerRef.current);
-  }, [resetViewAndPreviewState]);
+    clearSaveTimer();
+  }, [clearSaveTimer, resetViewAndPreviewState]);
 
   const handleApiFailure = useCallback(
     (cause: unknown, fallback: string) => {
@@ -473,12 +470,14 @@ export default function App() {
       const snapshot = notesRef.current.find((note) => note.id === id);
       if (!snapshot) return;
 
+      if (selectedIdRef.current === id) clearSaveTimer();
       dirtyIdsRef.current.delete(id);
       inFlightRef.current.add(id);
       if (selectedIdRef.current === id) setSaveState('saving');
 
       try {
         const saved = await updateNote(token, snapshot);
+        if (modeRef.current !== 'online') return;
         const latest = notesRef.current.find((note) => note.id === id);
         const changedWhileSaving = Boolean(
           latest &&
@@ -501,8 +500,9 @@ export default function App() {
         );
 
         if (changedWhileSaving) dirtyIdsRef.current.add(id);
-        if (selectedIdRef.current === id) setSaveState(changedWhileSaving ? 'idle' : 'saved');
+        if (selectedIdRef.current === id) setSaveState(changedWhileSaving ? 'unsaved' : 'saved');
       } catch (cause) {
+        if (modeRef.current !== 'online') return;
         dirtyIdsRef.current.add(id);
         if (selectedIdRef.current === id) {
           setSaveState(cause instanceof ApiError && cause.status === 409 ? 'conflict' : 'error');
@@ -510,20 +510,20 @@ export default function App() {
         }
       } finally {
         inFlightRef.current.delete(id);
-        if (dirtyIdsRef.current.has(id)) setEditSignal((value) => value + 1);
+        if (modeRef.current === 'online' && autoSaveRef.current && dirtyIdsRef.current.has(id)) {
+          setEditSignal((value) => value + 1);
+        }
       }
     },
-    [handleApiFailure, mode, token],
+    [autoSaveRef, clearSaveTimer, handleApiFailure, mode, token],
   );
 
   useEffect(() => {
-    if (mode !== 'online' || !selectedId || !dirtyIdsRef.current.has(selectedId)) return;
-    if (timerRef.current) window.clearTimeout(timerRef.current);
+    if (!shouldScheduleAutoSave(mode, autoSaveRef.current, selectedId, dirtyIdsRef.current)) return;
+    clearSaveTimer();
     timerRef.current = window.setTimeout(() => void flushSave(selectedId), 800);
-    return () => {
-      if (timerRef.current) window.clearTimeout(timerRef.current);
-    };
-  }, [editSignal, flushSave, mode, selectedId]);
+    return clearSaveTimer;
+  }, [autoSaveRef, clearSaveTimer, editSignal, flushSave, mode, selectedId]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -681,15 +681,19 @@ export default function App() {
     }
 
     dirtyIdsRef.current.add(selectedId);
-    setSaveState('idle');
-    setEditSignal((value) => value + 1);
+    setSaveState('unsaved');
+    if (autoSaveRef.current) {
+      setEditSignal((value) => value + 1);
+    }
   }
 
   function selectNote(id: string) {
-    if (mode === 'online' && selectedId && dirtyIdsRef.current.has(selectedId)) void flushSave(selectedId);
+    if (shouldAutoFlushOnTransition(mode, autoSave, selectedId, dirtyIdsRef.current)) {
+      void flushSave(selectedId);
+    }
     setSelectedId(id);
     setIsLocalPreviewActive(false);
-    setSaveState(isOfflineMode ? 'offline' : dirtyIdsRef.current.has(id) ? 'idle' : 'saved');
+    setSaveState(resolveNoteSaveState(mode, id, dirtyIdsRef.current));
     setGlobalError('');
     setMobileView(isViewOnly ? 'preview' : 'editor');
   }
@@ -707,7 +711,9 @@ export default function App() {
     }
 
     if (!token) return;
-    if (selectedId && dirtyIdsRef.current.has(selectedId)) void flushSave(selectedId);
+    if (shouldAutoFlushOnTransition(mode, autoSave, selectedId, dirtyIdsRef.current)) {
+      void flushSave(selectedId);
+    }
     setGlobalError('');
     try {
       const note = await createNote(token);
@@ -740,9 +746,10 @@ export default function App() {
       await deleteNote(token, selectedNote.id);
       dirtyIdsRef.current.delete(selectedNote.id);
       const remaining = notes.filter((note) => note.id !== selectedNote.id);
+      const nextSelectedId = remaining[0]?.id ?? null;
       setNotes(remaining);
-      setSelectedId(remaining[0]?.id ?? null);
-      setSaveState('idle');
+      setSelectedId(nextSelectedId);
+      setSaveState(resolveNoteSaveState('online', nextSelectedId, dirtyIdsRef.current));
       setMobileView(remaining.length ? 'editor' : 'notes');
     } catch (cause) {
       setGlobalError(handleApiFailure(cause, 'Unable to delete the note.'));
@@ -805,7 +812,14 @@ export default function App() {
         return;
       }
 
-      if (modeRef.current === 'online' && selectedIdRef.current && dirtyIdsRef.current.has(selectedIdRef.current)) {
+      if (
+        shouldAutoFlushOnTransition(
+          modeRef.current,
+          autoSaveRef.current,
+          selectedIdRef.current,
+          dirtyIdsRef.current,
+        )
+      ) {
         void flushSave(selectedIdRef.current);
       }
 
@@ -885,7 +899,9 @@ export default function App() {
     }
 
     if (!token) return;
-    if (selectedId && dirtyIdsRef.current.has(selectedId)) await flushSave(selectedId);
+    if (shouldAutoFlushOnTransition(mode, autoSave, selectedId, dirtyIdsRef.current)) {
+      await flushSave(selectedId);
+    }
 
     setSavingLocalPreview(true);
     setGlobalError('');
@@ -945,7 +961,7 @@ export default function App() {
   }
 
   function enableViewOnlyMode() {
-    if (mode === 'online' && selectedId && dirtyIdsRef.current.has(selectedId)) {
+    if (shouldAutoFlushOnTransition(mode, autoSave, selectedId, dirtyIdsRef.current)) {
       void flushSave(selectedId);
     }
     setIsViewOnly(true);
@@ -1028,10 +1044,21 @@ export default function App() {
         </nav>
 
         <div className="topbar-actions">
-          <span className={`save-state save-${saveState}`} role="status">
-            <span className="status-dot" aria-hidden="true" />
-            {saveLabel(saveState)}
-          </span>
+          <SaveControls
+            mode={mode}
+            saveState={saveState}
+            autoSave={autoSave}
+            canManualSave={canManualSaveNote(
+              mode,
+              Boolean(selectedNote),
+              isLocalPreviewActive,
+              saveState,
+            )}
+            onToggleAutoSave={toggleAutoSave}
+            onManualSave={() => {
+              if (selectedId) void flushSave(selectedId);
+            }}
+          />
           {canInstall && <button className="ghost-button quiet" type="button" onClick={() => void install()}>Install</button>}
           <ThemeSelect compact value={themePreference} onChange={setThemePreference} />
           <button className="ghost-button" type="button" onClick={lock}>{isOfflineMode ? 'Exit' : 'Lock'}</button>

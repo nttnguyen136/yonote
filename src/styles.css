@@ -575,6 +575,11 @@ a:focus-visible {
   font-weight: 700;
 }
 .cloud-context .app-icon { color: var(--success); font-size: .98rem; }
+.cloud-save-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 .save-state {
   min-width: 96px;
   display: inline-flex;
@@ -586,11 +591,49 @@ a:focus-visible {
   white-space: nowrap;
 }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent); }
-.save-saving { color: var(--warning); }
+.save-saving,
+.save-unsaved { color: var(--warning); }
 .save-saved { color: var(--success); }
 .save-offline { color: var(--offline); }
 .save-error,
 .save-conflict { color: var(--danger); }
+.topbar-save-button.is-dirty {
+  color: var(--accent-contrast);
+  background: var(--accent-strong);
+  border-color: color-mix(in srgb, var(--accent-strong) 75%, white 25%);
+}
+.topbar-save-button.is-dirty:hover:not(:disabled) {
+  background: var(--accent-strong);
+  filter: brightness(1.08);
+}
+.auto-save-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.auto-save-toggle.is-enabled {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border) 55%);
+  background: var(--success-soft);
+}
+.auto-save-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted-2);
+}
+.auto-save-toggle.is-enabled .auto-save-dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
+}
+.auto-save-value {
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+.auto-save-toggle.is-enabled .auto-save-value {
+  color: var(--success);
+}
 .offline-banner,
 .global-error {
   flex: 0 0 auto;
@@ -1371,6 +1414,7 @@ body.yonote-resizing .live-uml-resizer span {
   .brand-copy small { display: none; }
   .brand > span { width: 31px; height: 31px; flex-basis: 31px; }
   .topbar-actions { min-width: 0; gap: 5px; }
+  .cloud-save-controls { gap: 5px; }
   .save-state { display: none; }
   .topbar-actions .ghost-button { min-height: 40px; padding: 7px 10px; font-size: .76rem; }
   .theme-control.compact { min-height: 40px; padding-left: 9px; }
@@ -1442,7 +1486,8 @@ body.yonote-resizing .live-uml-resizer span {
   .unlock-intro h1 { font-size: clamp(2.35rem, 12vw, 3.2rem); }
   .offline-workspace-button { padding: 12px 10px; }
   .offline-workspace-button small { font-size: .72rem; }
-  .topbar-actions .ghost-button { padding-inline: 9px; }
+  .topbar-actions .ghost-button { padding-inline: 8px; }
+  .auto-save-label { display: none; }
   .theme-control.compact select { max-width: 66px; }
   .sidebar-heading { grid-template-columns: minmax(0, 1fr) auto; }
   .sidebar-heading .count-badge { display: none; }
