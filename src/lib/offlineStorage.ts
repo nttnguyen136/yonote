@@ -1,4 +1,6 @@
-import type { Note } from './types';
+import { DEFAULT_LIVE_MERMAID_SOURCE, DEFAULT_LIVE_UML_SOURCE } from './diagramDefaults.ts';
+import { MAX_NOTE_TITLE_LENGTH } from './markdownImport.ts';
+import type { Note } from './types.ts';
 
 export const OFFLINE_WORKSPACE_STORAGE_KEY = 'yonote-offline-workspace-v1';
 
@@ -45,33 +47,7 @@ PlantUML --> Browser: SVG
 PlantUML and Mermaid are rendered locally without sending diagram source to a server.
 `;
 
-const FALLBACK_LIVE_UML_SOURCE = `@startuml
-title Live PlantUML
-
-actor User
-participant "YONOTE PWA" as App
-participant "Local PlantUML" as UML
-
-User -> App: Edit diagram source
-App -> UML: Render in browser
-UML --> App: SVG
-App --> User: Live preview
-
-note over App,UML
-  No API request
-  No D1 write
-  Saved locally in browser
-end note
-@enduml`;
-
-const FALLBACK_LIVE_MERMAID_SOURCE = `flowchart LR
-  User[User] --> Editor[Live Mermaid editor]
-  Editor --> Renderer[Local Mermaid renderer]
-  Renderer --> Preview[Live SVG preview]
-  Editor -. no API request .-> Storage[(Browser Storage)]`;
-
 const MARKDOWN_EXTENSION_PATTERN = /\.(?:md|markdown|txt)$/i;
-const MAX_NOTE_TITLE_LENGTH = 200;
 
 export function createOfflineNote(
   title = 'Private offline note',
@@ -130,8 +106,8 @@ export function createDefaultOfflineWorkspaceState(
     notes: [starter],
     selectedId: starter.id,
     isViewOnly: false,
-    liveUmlSource: FALLBACK_LIVE_UML_SOURCE,
-    liveMermaidSource: FALLBACK_LIVE_MERMAID_SOURCE,
+    liveUmlSource: DEFAULT_LIVE_UML_SOURCE,
+    liveMermaidSource: DEFAULT_LIVE_MERMAID_SOURCE,
   };
 }
 
@@ -199,11 +175,11 @@ export function parseOfflineWorkspaceState(
       liveUmlSource:
         typeof record.liveUmlSource === 'string'
           ? record.liveUmlSource
-          : FALLBACK_LIVE_UML_SOURCE,
+          : DEFAULT_LIVE_UML_SOURCE,
       liveMermaidSource:
         typeof record.liveMermaidSource === 'string'
           ? record.liveMermaidSource
-          : FALLBACK_LIVE_MERMAID_SOURCE,
+          : DEFAULT_LIVE_MERMAID_SOURCE,
     };
   } catch {
     return createDefaultOfflineWorkspaceState(now, starterId);
